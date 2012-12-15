@@ -102,7 +102,7 @@ mrb_close(mrb_state *mrb)
 
 #ifdef ENABLE_JIT
     mrb_free(mrb, mrb->irep[i]->prof_info);
-    mrb_free(mrb, mrb->irep[i]->native_entry_tab->element);
+    mrb_free(mrb, mrb->irep[i]->native_entry_tab->codeinfo);
     mrb_free(mrb, mrb->irep[i]->native_entry_tab);
     mrb_free(mrb, mrb->irep[i]->compile_info);
 #endif
