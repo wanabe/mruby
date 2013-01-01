@@ -91,10 +91,10 @@ mrbjit_dispatch(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs)
   mrbjit_code_area cbase;
   mrb_code *prev_pc;
 
- retry:
+  prev_pc = irep->compile_info->prev_pc;
+
   cbase = irep->compile_info->code_base;
   n = ISEQ_OFFSET_OF(*ppc);
-  prev_pc = irep->compile_info->prev_pc;
   if (prev_pc) {
     ci = search_codeinfo_prev(irep->jit_entry_tab + n, prev_pc);
   }
@@ -143,9 +143,6 @@ mrbjit_dispatch(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs)
       asm("pop %ecx");*/
       asm("ldmfd sp!, {r0, r1}");
       //printf("%x \n", *ppc);
-
-      /* Updated pc, so dispatch try again */
-      goto retry;
     }
   }
   else {
