@@ -70,6 +70,7 @@ mrbjit_emit_code(mrb_state *mrb, mrbjit_vmstatus *status)
   case OP_GETCONST:
     return code->emit_getconst(mrb, irep, ppc);
 
+  case OP_SENDB:
   case OP_SEND:
     return code->emit_send(mrb, status);
 
