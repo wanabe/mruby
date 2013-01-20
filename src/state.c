@@ -95,13 +95,18 @@ mrb_close(mrb_state *mrb)
   for (i=0; i<mrb->irep_len; i++) {
     if (!(mrb->irep[i]->flags & MRB_ISEQ_NO_FREE)) {
       mrb_free(mrb, mrb->irep[i]->iseq);
-#ifdef ENABLE_JIT
-      mrb_free(mrb, mrb->irep[i]->native_iseq);
-#endif
     }
     mrb_free(mrb, mrb->irep[i]->pool);
     mrb_free(mrb, mrb->irep[i]->syms);
     mrb_free(mrb, mrb->irep[i]->lines);
+
+#ifdef ENABLE_JIT
+    mrb_free(mrb, mrb->irep[i]->prof_info);
+    mrb_free(mrb, mrb->irep[i]->native_entry_tab->element);
+    mrb_free(mrb, mrb->irep[i]->native_entry_tab);
+    mrb_free(mrb, mrb->irep[i]->compile_info);
+#endif
+
     mrb_free(mrb, mrb->irep[i]);
   }
   mrb_free(mrb, mrb->irep);

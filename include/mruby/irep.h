@@ -32,9 +32,8 @@ typedef struct mrb_irep {
 #ifdef ENABLE_JIT
   /* JIT stuff */
   int *prof_info;
-  mrbjit_code *native_iseq;
+  mrbjit_codetab *native_entry_tab;
   mrbjit_comp_info *compile_info;
-  mrb_code *prev_pc;
 #endif
 } mrb_irep;
 
