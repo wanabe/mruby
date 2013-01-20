@@ -132,4 +132,8 @@ typedef short mrb_sym;
 # define strtoll _strtoi64
 #endif
 
+#ifdef __arm__
+# define ENABLE_JIT
+#endif
+
 #endif  /* MRUBYCONF_H */
