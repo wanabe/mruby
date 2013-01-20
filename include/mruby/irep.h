@@ -29,7 +29,7 @@ typedef struct mrb_irep {
 
 #ifdef ENABLE_JIT
   /* JIT stuff */
-  mrb_value prof_info;
+  int *prof_info;
   mrbjit_code *native_iseq;
 #endif
 } mrb_irep;

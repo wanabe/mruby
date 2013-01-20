@@ -479,8 +479,10 @@ argnum_error(mrb_state *mrb, int num)
 
 #ifdef ENABLE_JIT
 void mrbjit_dispatch(mrb_state *, mrb_irep *, mrb_code **, mrb_value *);
+void mrbjit_dispatch_jump(mrb_state *, mrb_irep *, mrb_code **, mrb_value *);
 #else
 #define mrbjit_dispatch(mrb, irep, ppc, regs)
+#define mrbjit_dispatch_jump(mrb, irep, ppc, regs)
 #endif
 
 #ifdef __GNUC__
@@ -497,10 +499,10 @@ void mrbjit_dispatch(mrb_state *, mrb_irep *, mrb_code **, mrb_value *);
 
 #else
 
-#define INIT_DISPATCH mrbjit_dispatch(mrb, irep, &pc, regs);JUMP; return mrb_nil_value();
+#define INIT_DISPATCH JUMP; return mrb_nil_value();
 #define CASE(op) L_ ## op:
-#define NEXT i=*++pc; goto *optable[GET_OPCODE(i)]
-#define JUMP i=*pc; goto *optable[GET_OPCODE(i)]
+#define NEXT i=*++pc;mrbjit_dispatch(mrb, irep, &pc, regs); goto *optable[GET_OPCODE(i)]
+#define JUMP i=*pc;mrbjit_dispatch_jump(mrb, irep, &pc, regs); goto *optable[GET_OPCODE(i)]
 
 #define END_DISPATCH
 
