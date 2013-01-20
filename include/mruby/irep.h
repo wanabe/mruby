@@ -7,6 +7,8 @@
 #ifndef MRUBY_IREP_H
 #define MRUBY_IREP_H
 
+#include "jit.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -31,6 +33,8 @@ typedef struct mrb_irep {
   /* JIT stuff */
   int *prof_info;
   mrbjit_code *native_iseq;
+  mrbjit_comp_info *compile_info;
+  mrb_code *prev_pc;
 #endif
 } mrb_irep;
 

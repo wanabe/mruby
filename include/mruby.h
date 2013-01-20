@@ -38,7 +38,6 @@ extern "C" {
 #include "mruby/value.h"
 
 typedef int32_t mrb_code;
-typedef void *(*mrbjit_code)();
 
 struct mrb_state;
 
