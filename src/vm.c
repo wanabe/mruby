@@ -478,11 +478,11 @@ argnum_error(mrb_state *mrb, int num)
 }
 
 #ifdef ENABLE_JIT
-void mrbjit_dispatch(mrb_state *, mrb_irep *, mrb_code **, mrb_value *);
-void mrbjit_dispatch_local_jump(mrb_state *, mrb_irep *, mrb_code **, mrb_value *);
+void mrbjit_dispatch(mrb_state *, mrb_irep *, mrb_code **);
+void mrbjit_dispatch_local_jump(mrb_state *, mrb_irep *, mrb_code **);
 #else
-#define mrbjit_dispatch(mrb, irep, ppc, regs)
-#define mrbjit_dispatch_local_jump(mrb, irep, ppc, regs)
+#define mrbjit_dispatch(mrb, irep, ppc)
+#define mrbjit_dispatch_local_jump(mrb, irep, ppc)
 #endif
 
 #ifdef __GNUC__
@@ -503,9 +503,9 @@ void mrbjit_dispatch_local_jump(mrb_state *, mrb_irep *, mrb_code **, mrb_value 
 
 #define INIT_DISPATCH JUMP; return mrb_nil_value();
 #define CASE(op) L_ ## op:
-#define NEXT mrbjit_dispatch(mrb, irep, &pc, regs);i=*++pc; goto *optable[GET_OPCODE(i)]
-#define JUMP mrbjit_dispatch(mrb, irep, &pc, regs);i=*pc; goto *optable[GET_OPCODE(i)]
-#define LJUMP mrbjit_dispatch_local_jump(mrb, irep, &pc, regs);i=*pc; goto *optable[GET_OPCODE(i)]
+#define NEXT mrbjit_dispatch(mrb, irep, &pc);i=*++pc; goto *optable[GET_OPCODE(i)]
+#define JUMP mrbjit_dispatch(mrb, irep, &pc);i=*pc; goto *optable[GET_OPCODE(i)]
+#define LJUMP mrbjit_dispatch_local_jump(mrb, irep, &pc);i=*pc; goto *optable[GET_OPCODE(i)]
 
 #define END_DISPATCH
 
