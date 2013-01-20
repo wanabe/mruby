@@ -477,13 +477,19 @@ argnum_error(mrb_state *mrb, int num)
   mrb->exc = (struct RObject*)mrb_object(exc);
 }
 
+#ifdef ENABLE_JIT
+void mrbjit_dispatch(mrb_state *, mrb_irep *, mrb_code **, mrb_value *);
+#else
+#define mrbjit_dispatch(mrb, irep, ppc, regs)
+#endif
+
 #ifdef __GNUC__
 #define DIRECT_THREADED
 #endif
 
 #ifndef DIRECT_THREADED
 
-#define INIT_DISPATCH for (;;) { i = *pc; switch (GET_OPCODE(i)) {
+#define INIT_DISPATCH for (;;) { mrbjit_dispatch(mrb, irep, &pc, regs);i = *pc; switch (GET_OPCODE(i)) {
 #define CASE(op) case op:
 #define NEXT pc++; break
 #define JUMP break
@@ -491,7 +497,7 @@ argnum_error(mrb_state *mrb, int num)
 
 #else
 
-#define INIT_DISPATCH JUMP; return mrb_nil_value();
+#define INIT_DISPATCH mrbjit_dispatch(mrb, irep, &pc, regs);JUMP; return mrb_nil_value();
 #define CASE(op) L_ ## op:
 #define NEXT i=*++pc; goto *optable[GET_OPCODE(i)]
 #define JUMP i=*pc; goto *optable[GET_OPCODE(i)]
