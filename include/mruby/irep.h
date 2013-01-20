@@ -26,6 +26,12 @@ typedef struct mrb_irep {
   short *lines;
 
   int ilen, plen, slen;
+
+#ifdef ENABLE_JIT
+  /* JIT stuff */
+  mrb_value prof_info;
+  mrbjit_code *native_iseq;
+#endif
 } mrb_irep;
 
 #define MRB_ISEQ_NO_FREE 1

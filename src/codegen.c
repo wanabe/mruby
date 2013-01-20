@@ -2115,6 +2115,8 @@ scope_new(mrb_state *mrb, codegen_scope *prev, node *lv)
   return p;
 }
 
+mrb_value mrb_ary_new(mrb_state *);
+
 static void
 scope_finish(codegen_scope *s)
 {
@@ -2124,6 +2126,10 @@ scope_finish(codegen_scope *s)
   irep->flags = 0;
   if (s->iseq) {
     irep->iseq = (mrb_code *)codegen_realloc(s, s->iseq, sizeof(mrb_code)*s->pc);
+#ifdef ENABLE_JIT
+    irep->native_iseq = (mrbjit_code*)mrb_malloc(mrb, sizeof(mrbjit_code)*s->pc);
+    irep->prof_info = mrb_ary_new(mrb);
+#endif
     irep->ilen = s->pc;
     if (s->lines) {
       irep->lines = (short *)codegen_realloc(s, s->lines, sizeof(short)*s->pc);
