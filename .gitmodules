@@ -1,0 +1,3 @@
+[submodule "include/xtaak"]
+	path = include/xtaak
+	url = git://github.com/wanabe/xtaak.git
