@@ -179,6 +179,8 @@ mrb_init_proc(mrb_state *mrb)
   call_irep->compile_info = (mrbjit_comp_info *)mrb_alloca(mrb, sizeof(mrbjit_comp_info));
   memset(call_irep->compile_info, 0, sizeof(mrbjit_comp_info));
   call_irep->jit_entry_tab = (mrbjit_codetab *)mrb_alloca(mrb, sizeof(mrbjit_codetab)*1);
+  call_irep->jit_entry_tab->size = 2;
+  call_irep->jit_entry_tab->body = (mrbjit_code_info *)mrb_calloc(mrb, 2, sizeof(mrbjit_code_info));
   call_irep->prof_info = (int *)mrb_alloca(mrb, sizeof(int));
 #endif
 
