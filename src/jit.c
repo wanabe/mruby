@@ -14,9 +14,7 @@
 
 #ifdef ENABLE_JIT
 extern const void *mrbjit_emit_code(mrb_state *, mrb_irep *, mrb_code **);
-extern const void *mrbjit_emit_entry(mrbjit_code_area, mrb_state *, mrb_irep *);
 extern void mrbjit_emit_exit(mrbjit_code_area, mrb_state *, mrb_irep *);
-extern const mrbjit_code_area mrbjit_alloc_code();
 
 static mrbjit_code_info *
 add_codeinfo(mrb_state *mrb, mrbjit_codetab *tab)
@@ -85,7 +83,7 @@ search_codeinfo_prev(mrbjit_codetab *tab, mrb_code *prev_pc)
 }
 
 void
-mrbjit_dispatch(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
+mrbjit_dispatch(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs)
 {
   size_t n = ISEQ_OFFSET_OF(*ppc);
   size_t pn;
@@ -108,7 +106,35 @@ mrbjit_dispatch(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
 
   if (ci) {
     if (cbase == NULL) {
+      /*asm("push %ecx");
+      asm("mov %0, %%ecx"
+	  :
+	  : "r"(irep->pool));
+
+      asm("push %ebx");
+      asm("mov %0, %%ebx"
+	  :
+	  : "r"(ppc));
+      asm("push %ebp");
+      asm("mov %0, %%ebp"
+	  :
+	  : "r"(regs));*/
+      asm("stmfd sp!, {r1, r2, fp}");
+      asm("mov %0, r2"
+	  :
+	  : "r"(irep->pool));
+
+      asm("mov %0, r1"
+	  :
+	  : "r"(ppc));
+      asm("mov %0, fp"
+	  :
+	  : "r"(regs));
       ci->entry();
+      asm("ldmfd sp!, {r1, r2, fp}");
+      /*asm("pop %ebp");
+      asm("pop %ebx");
+      asm("pop %ecx");*/
     }
   }
   else {
@@ -134,8 +160,8 @@ mrbjit_dispatch(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
 }
 
 void
-mrbjit_dispatch_local_jump(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
+mrbjit_dispatch_local_jump(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs)
 {
-  mrbjit_dispatch(mrb, irep, ppc);
+  mrbjit_dispatch(mrb, irep, ppc, regs);
 }
 #endif
