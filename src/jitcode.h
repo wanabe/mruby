@@ -13,13 +13,13 @@ extern "C" {
 #include "opcode.h"
 
 #include "mruby/irep.h"
+#include "mruby/value.h"
 #include "mruby/jit.h"
 } /* extern "C" */
 
 /* Regs Map                               *
- * ebp   -- pointer to regs               *
- * ecx   -- pointer to pool               *
- * ebx   -- pointer to pc                 */
+ * r2    -- pointer to regs               *
+ * r1    -- pointer to pc                 */
 class MRBJitCode: public Xtaak::CodeGenerator {
 
  public:
@@ -43,17 +43,17 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     dd((Xtaak::uint32)mruby_pc);
   }
   
-  const void *emit_mov(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc) {
+  const void *emit_move(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc) {
     const void *code = getCurr();
     const Xtaak::uint32 dstoff = GETARG_A(**ppc) * sizeof(mrb_value);
     const Xtaak::uint32 srcoff = GETARG_B(**ppc) * sizeof(mrb_value);
-    /*movsd(xmm0, ptr [ebp + srcoff]);
-    movsd(ptr [ebp + dstoff], xmm0);*/
+    /*movsd(xmm0, ptr [ecx + srcoff]);
+    movsd(ptr [ecx + dstoff], xmm0);*/
     movw(r3, srcoff);
-    add(r3, r3, r0);
+    add(r3, r3, r2);
     ldm(r3, r4, r5, r6, r7);
     movw(r3, dstoff);
-    add(r3, r3, r0);
+    add(r3, r3, r2);
     stm(r3, r4, r5, r6, r7);
     return code;
   }
@@ -62,14 +62,64 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     const void *code = getCurr();
     const Xtaak::uint32 dstoff = GETARG_A(**ppc) * sizeof(mrb_value);
     const Xtaak::uint32 srcoff = GETARG_B(**ppc) * sizeof(mrb_value);
-    /*movsd(xmm0, ptr [ecx + srcoff]);
-    movsd(ptr [ebp + dstoff], xmm0);*/
-    movw(r3, srcoff);
-    add(r3, r3, r2);
+    /*mov(eax, (Xbyak::uint32)irep->pool + srcoff);
+    movsd(xmm0, ptr [eax]);
+    movsd(ptr [ecx + dstoff], xmm0);*/
+    mov32(r3, (Xtaak::uint32)irep->pool + srcoff);
     ldm(r3, r4, r5, r6, r7);
     movw(r3, dstoff);
-    add(r3, r3, r0);
+    add(r3, r3, r2);
     stm(r3, r4, r5, r6, r7);
+
+    return code;
+  }
+
+  const void *emit_loadi(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc) {
+    const void *code = getCurr();
+    const Xtaak::uint32 dstoff = GETARG_A(**ppc) * sizeof(mrb_value);
+    const Xtaak::uint32 src = GETARG_sBx(**ppc) * sizeof(mrb_value);
+    /*mov(eax, 0xfff00000 | MRB_TT_FIXNUM);
+    mov(dword [ecx + dstoff], eax);
+    mov(eax, src);
+    mov(dword [ecx + dstoff + 4], eax);*/
+    mov32(r3, 0xfff00000 | MRB_TT_FIXNUM);
+    mov32(r4, src);
+    movw(r0, dstoff);
+    add(r0, r0, r2);
+    stm(r0, r3, r4);
+
+    return code;
+  }
+
+  const void *emit_loadt(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc) {
+    const void *code = getCurr();
+    const Xtaak::uint32 dstoff = GETARG_A(**ppc) * sizeof(mrb_value);
+    /*mov(eax, 0xfff00000 | MRB_TT_TRUE);
+    mov(dword [ecx + dstoff], eax);
+    mov(eax, 1);
+    mov(dword [ecx + dstoff + 4], eax);*/
+    mov32(r3, 0xfff00000 | MRB_TT_TRUE);
+    mov32(r4, 1);
+    movw(r0, dstoff);
+    add(r0, r0, r2);
+    stm(r0, r3, r4);
+
+    return code;
+  }
+
+  const void *emit_loadf(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc) {
+    const void *code = getCurr();
+    const Xtaak::uint32 dstoff = GETARG_A(**ppc) * sizeof(mrb_value);
+    /*mov(eax, 0xfff00000 | MRB_TT_FALSE);
+    mov(dword [ecx + dstoff], eax);
+    xor(eax, eax);
+    mov(dword [ecx + dstoff + 4], eax);*/
+    mov32(r3, 0xfff00000 | MRB_TT_FALSE);
+    mov32(r4, 0);
+    movw(r0, dstoff);
+    add(r0, r0, r2);
+    stm(r0, r3, r4);
+
     return code;
   }
 };
