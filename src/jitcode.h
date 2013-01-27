@@ -43,6 +43,11 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     dd((Xtaak::uint32)mruby_pc);
   }
   
+  void emit_jump_block(void *entry) {
+    const char *code = (const char *)getCurr();
+    b((char *)entry - code - 8);
+  }
+
   const void *emit_move(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc) {
     const void *code = getCurr();
     const Xtaak::uint32 dstoff = GETARG_A(**ppc) * sizeof(mrb_value);
