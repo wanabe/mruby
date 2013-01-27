@@ -15,7 +15,7 @@ void
 mrbjit_emit_exit(mrbjit_code_area coderaw, mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
 {
   MRBJitCode *code = (MRBJitCode *) coderaw;
-  code->emit_exit(irep->compile_info->prev_pc);
+  code->emit_exit(*ppc);
 }
 
 const void *
@@ -44,7 +44,7 @@ mrbjit_emit_code(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
     return code->emit_loadt(mrb, irep, ppc);
 
   case OP_LOADF:
-  return code->emit_loadf(mrb, irep, ppc);
+    return code->emit_loadf(mrb, irep, ppc);
 
   default:
     return NULL;

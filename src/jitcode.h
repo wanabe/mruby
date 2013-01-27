@@ -77,16 +77,16 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   const void *emit_loadi(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc) {
     const void *code = getCurr();
     const Xtaak::uint32 dstoff = GETARG_A(**ppc) * sizeof(mrb_value);
-    const Xtaak::uint32 src = GETARG_sBx(**ppc) * sizeof(mrb_value);
-    /*mov(eax, 0xfff00000 | MRB_TT_FIXNUM);
+    const Xtaak::uint32 src = GETARG_sBx(**ppc);
+    /*mov(eax, src);
     mov(dword [ecx + dstoff], eax);
-    mov(eax, src);
+    mov(eax, 0xfff00000 | MRB_TT_FIXNUM);
     mov(dword [ecx + dstoff + 4], eax);*/
-    mov32(r3, 0xfff00000 | MRB_TT_FIXNUM);
-    mov32(r4, src);
+    movw(r3, src);
+    movw(r5, MRB_TT_FIXNUM);
     movw(r0, dstoff);
     add(r0, r0, r2);
-    stm(r0, r3, r4);
+    stm(r0, r3, r4, r5);
 
     return code;
   }
@@ -94,15 +94,15 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   const void *emit_loadt(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc) {
     const void *code = getCurr();
     const Xtaak::uint32 dstoff = GETARG_A(**ppc) * sizeof(mrb_value);
-    /*mov(eax, 0xfff00000 | MRB_TT_TRUE);
+    /*mov(eax, 1);
     mov(dword [ecx + dstoff], eax);
-    mov(eax, 1);
+    mov(eax, 0xfff00000 | MRB_TT_TRUE);
     mov(dword [ecx + dstoff + 4], eax);*/
-    mov32(r3, 0xfff00000 | MRB_TT_TRUE);
-    mov32(r4, 1);
+    movw(r3, 1);
+    movw(r5, MRB_TT_TRUE);
     movw(r0, dstoff);
     add(r0, r0, r2);
-    stm(r0, r3, r4);
+    stm(r0, r3, r4, r5);
 
     return code;
   }
@@ -110,15 +110,15 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   const void *emit_loadf(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc) {
     const void *code = getCurr();
     const Xtaak::uint32 dstoff = GETARG_A(**ppc) * sizeof(mrb_value);
-    /*mov(eax, 0xfff00000 | MRB_TT_FALSE);
+    /*xor(eax, eax);
     mov(dword [ecx + dstoff], eax);
-    xor(eax, eax);
+    mov(eax, 0xfff00000 | MRB_TT_FALSE);
     mov(dword [ecx + dstoff + 4], eax);*/
-    mov32(r3, 0xfff00000 | MRB_TT_FALSE);
-    mov32(r4, 0);
+    movw(r3, 1);
+    movw(r5, MRB_TT_FALSE);
     movw(r0, dstoff);
     add(r0, r0, r2);
-    stm(r0, r3, r4);
+    stm(r0, r3, r4, r5);
 
     return code;
   }
