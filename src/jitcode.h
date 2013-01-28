@@ -29,12 +29,12 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   {
   }
 
-  const void *emit_entry(mrb_state *mrb, mrb_irep *irep) {
+  const void *gen_entry(mrb_state *mrb, mrb_irep *irep) {
     const void* func_ptr = getCurr();
     return func_ptr;
   }
 
-  void emit_exit(mrb_code *mruby_pc) {
+  void gen_exit(mrb_code *mruby_pc) {
     /*mov(dword [ebx], (Xbyak::uint32)pc);
     ret();*/
     ldr(r3, pc + 4);
@@ -43,7 +43,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     dd((Xtaak::uint32)mruby_pc);
   }
   
-  void emit_jump_block(void *entry) {
+  void gen_jump_block(void *entry) {
     const char *code = (const char *)getCurr();
     b((char *)entry - code - 8);
   }
