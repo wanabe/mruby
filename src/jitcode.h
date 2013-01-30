@@ -56,10 +56,10 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     movsd(ptr [ecx + dstoff], xmm0);*/
     movw(r3, srcoff);
     add(r3, r3, r2);
-    ldm(r3, r4, r5, r6, r7);
+    ldm(r3, r4, r5);
     movw(r3, dstoff);
     add(r3, r3, r2);
-    stm(r3, r4, r5, r6, r7);
+    stm(r3, r4, r5);
     return code;
   }
 
@@ -71,10 +71,10 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     movsd(xmm0, ptr [eax]);
     movsd(ptr [ecx + dstoff], xmm0);*/
     mov32(r3, (Xtaak::uint32)irep->pool + srcoff);
-    ldm(r3, r4, r5, r6, r7);
+    ldm(r3, r4, r5);
     movw(r3, dstoff);
     add(r3, r3, r2);
-    stm(r3, r4, r5, r6, r7);
+    stm(r3, r4, r5);
 
     return code;
   }
@@ -88,10 +88,10 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(eax, 0xfff00000 | MRB_TT_FIXNUM);
     mov(dword [ecx + dstoff + 4], eax);*/
     movw(r3, src);
-    movw(r5, MRB_TT_FIXNUM);
+    mov32(r4, mrb_mktt(MRB_TT_FIXNUM));
     movw(r0, dstoff);
     add(r0, r0, r2);
-    stm(r0, r3, r4, r5);
+    stm(r0, r3, r4);
 
     return code;
   }
@@ -104,10 +104,10 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(eax, 0xfff00000 | MRB_TT_TRUE);
     mov(dword [ecx + dstoff + 4], eax);*/
     movw(r3, 1);
-    movw(r5, MRB_TT_TRUE);
+    mov32(r4, mrb_mktt(MRB_TT_TRUE));
     movw(r0, dstoff);
     add(r0, r0, r2);
-    stm(r0, r3, r4, r5);
+    stm(r0, r3, r4);
 
     return code;
   }
@@ -120,10 +120,10 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(eax, 0xfff00000 | MRB_TT_FALSE);
     mov(dword [ecx + dstoff + 4], eax);*/
     movw(r3, 1);
-    movw(r5, MRB_TT_FALSE);
+    mov32(r4, mrb_mktt(MRB_TT_FALSE));
     movw(r0, dstoff);
     add(r0, r0, r2);
-    stm(r0, r3, r4, r5);
+    stm(r0, r3, r4);
 
     return code;
   }
@@ -136,10 +136,10 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(eax, 0xfff00000 | MRB_TT_FALSE);
     mov(dword [ecx + dstoff + 4], eax);*/
     movw(r3, 0);
-    movw(r5, MRB_TT_FALSE);
+    mov32(r4, mrb_mktt(MRB_TT_FALSE));
     movw(r0, dstoff);
     add(r0, r0, r2);
-    stm(r0, r3, r4, r5);
+    stm(r0, r3, r4);
 
     return code;
   }

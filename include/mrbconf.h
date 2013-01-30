@@ -17,7 +17,7 @@
 //#define MRB_INT64
 
 /* represent mrb_value in boxed double; conflict with MRB_USE_FLOAT */
-//#define MRB_NAN_BOXING
+#define MRB_NAN_BOXING
 
 /* define on big endian machines; used by MRB_NAN_BOXING */
 //#define MRB_ENDIAN_BIG
