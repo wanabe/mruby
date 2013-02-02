@@ -131,21 +131,21 @@ mrbjit_dispatch(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs)
 	  :
 	  : "a"(ppc)
 	  : "%ebx");*/
-      asm("stmfd sp!, {r1, r2}");
-      asm("mov r2, %0"
-	  :
-	  : "r"(regs)
-          : "r2");
+      asm("stmfd sp!, {r0, r1}");
       asm("mov r1, %0"
 	  :
-	  : "r"(ppc)
+	  : "r"(regs)
           : "r1");
+      asm("mov r0, %0"
+	  :
+	  : "r"(ppc)
+          : "r0");
 
       ci->entry();
 
       /*asm("pop %ebx");
       asm("pop %ecx");*/
-      asm("ldmfd sp!, {r1, r2}");
+      asm("ldmfd sp!, {r0, r1}");
       //printf("%x \n", *ppc);
 
       /* Updated pc, so dispatch try again */

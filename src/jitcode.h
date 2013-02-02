@@ -18,8 +18,8 @@ extern "C" {
 } /* extern "C" */
 
 /* Regs Map                               *
- * r2    -- pointer to regs               *
- * r1    -- pointer to pc                 */
+ * r1    -- pointer to regs               *
+ * r0    -- pointer to pc                 */
 class MRBJitCode: public Xtaak::CodeGenerator {
 
  public:
@@ -42,7 +42,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     /*mov(dword [ebx], (Xbyak::uint32)pc);
     ret();*/
     ldr(r3, pc + 4);
-    str(r3, r1);
+    str(r3, r0);
     mov(pc, lr);
     dd((Xtaak::uint32)mruby_pc);
   }
@@ -64,13 +64,13 @@ class MRBJitCode: public Xtaak::CodeGenerator {
       cmp(eax, 0xfff00000 | tt);
       jz("@f");
     }*/
-    /* Input r0 for type tag */
-    add(r0, r0, 0x100000);
+    /* Input r2 for type tag */
+    add(r2, r2, 0x100000);
     if (tt == MRB_TT_FLOAT) {
       bcc(3);
     }
     else {
-      cmp(r0, tt);
+      cmp(r2, tt);
       /*jz("@f");*/
       beq(3);
     }
@@ -79,7 +79,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     /*mov(dword [ebx], (Xbyak::uint32)pc);
     ret();*/
     ldr(r3, pc + 4);
-    str(r3, r1);
+    str(r3, r0);
     mov(pc, lr);
     dd((Xtaak::uint32)mruby_pc);
   }
@@ -93,10 +93,10 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     /*movsd(xmm0, ptr [ecx + srcoff]);
     movsd(ptr [ecx + dstoff], xmm0);*/
     movw(r3, srcoff);
-    add(r3, r3, r2);
+    add(r3, r3, r1);
     ldm(r3, r4, r5);
     movw(r3, dstoff);
-    add(r3, r3, r2);
+    add(r3, r3, r1);
     stm(r3, r4, r5);
     return code;
   }
@@ -113,7 +113,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov32(r3, (Xtaak::uint32)irep->pool + srcoff);
     ldm(r3, r4, r5);
     movw(r3, dstoff);
-    add(r3, r3, r2);
+    add(r3, r3, r1);
     stm(r3, r4, r5);
 
     return code;
@@ -131,9 +131,9 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(dword [ecx + dstoff + 4], eax);*/
     movw(r3, src);
     mov32(r4, mrb_mktt(MRB_TT_FIXNUM));
-    movw(r0, dstoff);
-    add(r0, r0, r2);
-    stm(r0, r3, r4);
+    movw(r2, dstoff);
+    add(r2, r2, r1);
+    stm(r2, r3, r4);
 
     return code;
   }
@@ -149,9 +149,9 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(dword [ecx + dstoff + 4], eax);*/
     movw(r3, 1);
     mov32(r4, mrb_mktt(MRB_TT_TRUE));
-    movw(r0, dstoff);
-    add(r0, r0, r2);
-    stm(r0, r3, r4);
+    movw(r2, dstoff);
+    add(r2, r2, r1);
+    stm(r2, r3, r4);
 
     return code;
   }
@@ -167,9 +167,9 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(dword [ecx + dstoff + 4], eax);*/
     movw(r3, 1);
     mov32(r4, mrb_mktt(MRB_TT_FALSE));
-    movw(r0, dstoff);
-    add(r0, r0, r2);
-    stm(r0, r3, r4);
+    movw(r2, dstoff);
+    add(r2, r2, r1);
+    stm(r2, r3, r4);
 
     return code;
   }
@@ -185,9 +185,9 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(dword [ecx + dstoff + 4], eax);*/
     movw(r3, 0);
     mov32(r4, mrb_mktt(MRB_TT_FALSE));
-    movw(r0, dstoff);
-    add(r0, r0, r2);
-    stm(r0, r3, r4);
+    movw(r2, dstoff);
+    add(r2, r2, r1);
+    stm(r2, r3, r4);
 
     return code;
   }
@@ -205,12 +205,12 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     add(eax, y);
     mov(dword [ecx + off], eax);*/
     movw(r3, off);
-    add(r3, r3, r2);
-    ldr(r0, r3 + 4); /* Get type tag */
+    add(r3, r3, r1);
+    ldr(r2, r3 + 4); /* Get type tag */
     gen_type_guard((enum mrb_vtype)mrb_type(regs[regno]), *ppc);
-    ldr(r0, r3);
-    add(r0, r0, y);
-    str(r0, r3);
+    ldr(r2, r3);
+    add(r2, r2, y);
+    str(r2, r3);
 
     return code;
   }
