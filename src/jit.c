@@ -116,10 +116,6 @@ mrbjit_dispatch(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs)
     }
 
     if (ci->entry) {
-      static int c = 0;
-      if(c++ > 7942) {
-        c--;
-      }
       //printf("%x %x \n", ci->entry, *ppc);
       /*asm("push %ecx");
       asm("mov %0, %%ecx"
