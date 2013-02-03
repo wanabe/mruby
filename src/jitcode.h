@@ -17,6 +17,8 @@ extern "C" {
 #include "mruby/jit.h"
 } /* extern "C" */
 
+#ifdef ENABLE_JIT
+
 /* Regs Map                               *
  * r1    -- pointer to regs               *
  * r0    -- pointer to pc                 */
@@ -215,5 +217,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     return code;
   }
 };
+
+#endif  /* ENABLE_JIT */
 
 #endif  /* MRUBY_JITCODE_H */
