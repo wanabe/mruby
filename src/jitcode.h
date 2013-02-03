@@ -60,14 +60,14 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     /* Input eax for type tag
     if (tt == MRB_TT_FLOAT) {
       cmp(eax, 0xfff00000);
-      ja("@f");
+      jb("@f");
     } 
     else {
       cmp(eax, 0xfff00000 | tt);
       jz("@f");
     }*/
     /* Input r2 for type tag */
-    add(r2, r2, 0x100000);
+    adds(r2, r2, 0x100000);
     if (tt == MRB_TT_FLOAT) {
       bcc(3);
     }
@@ -205,14 +205,22 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     gen_type_guard((enum mrb_vtype)mrb_type(regs[regno]), *ppc);
     mov(eax, dword [ecx + off]);
     add(eax, y);
-    mov(dword [ecx + off], eax);*/
+    mov(dword [ecx + off], eax);
+    jno("@f");
+    cvtsi2sd(xmm0, eax);
+    movsd(dword [ecx + off], xmm0);
+    L("@@");*/
     movw(r3, off);
     add(r3, r3, r1);
     ldr(r2, r3 + 4); /* Get type tag */
     gen_type_guard((enum mrb_vtype)mrb_type(regs[regno]), *ppc);
     ldr(r2, r3);
-    add(r2, r2, y);
+    adds(r2, r2, y);
     str(r2, r3);
+    bvc(2);
+    fmsr(s0, r2); // FMSR s0, r2
+    fsitod(d0, s0); // FSITOD d2, s0
+    fstd(d2, r3); // FSTD d2, [r3]*/
 
     return code;
   }
