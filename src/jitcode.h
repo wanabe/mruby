@@ -224,6 +224,86 @@ class MRBJitCode: public Xtaak::CodeGenerator {
 
     return code;
   }
+
+#define COMP_GEN(CMPINST)                                            \
+  do {                                                               \
+    int regno = GETARG_A(**ppc);                                     \
+    const Xtaak::uint32 off0 = regno * sizeof(mrb_value);            \
+    const Xtaak::uint32 off1 = off0 + sizeof(mrb_value);             \
+    /* mov(eax, dword [ecx + off0 + 4]); /* Get type tag */          \
+    movw(r4, off0);                                                  \
+    add(r4, r4, r1);                                                 \
+    ldr(r2, r4 + 4); /* Get type tag */                              \
+    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno]), *ppc);     \
+    /* mov(eax, dword [ecx + off1 + 4]); /* Get type tag */          \
+    movw(r5, off1);                                                  \
+    add(r5, r5, r1);                                                 \
+    ldr(r2, r5 + 4); /* Get type tag */                              \
+    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno + 1]), *ppc); \
+\
+    /*mov(eax, dword [ecx + off0]);*/                                \
+    ldr(r2, r4);                                                     \
+    /*cmp(eax, dword [ecx + off1]);*/                                \
+    ldr(r3, r5);                                                     \
+    cmp(r2, r3);                                                     \
+    /*CMPINST(al);*/                                                 \
+    /*cwde();*/                                                      \
+    /*add(eax, eax);*/                                               \
+    /*add(eax, 0xfff00001);*/                                        \
+    /*mov(dword [ecx + off0 + 4], eax);*/                            \
+    /*mov(dword [ecx + off0], 1);*/                                  \
+    mov32(r3, mrb_mktt(MRB_TT_FALSE));                               \
+    setCond(CMPINST);                                                \
+    add(r3, r3, MRB_TT_TRUE - MRB_TT_FALSE);                         \
+    setCond(AL);                                                     \
+    movw(r2, 1);                                                     \
+    stm(r4, r2, r3);                                                 \
+  } while(0)
+    
+  const void *
+    emit_eq(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
+  {
+    const void *code = getCurr();
+    COMP_GEN(EQ);
+
+    return code;
+  }
+
+  const void *
+    emit_lt(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
+  {
+    const void *code = getCurr();
+    COMP_GEN(LT);
+
+    return code;
+  }
+
+  const void *
+    emit_le(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
+  {
+    const void *code = getCurr();
+    COMP_GEN(LE);
+
+    return code;
+  }
+
+  const void *
+    emit_gt(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
+  {
+    const void *code = getCurr();
+    COMP_GEN(GT);
+
+    return code;
+  }
+
+  const void *
+    emit_ge(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
+  {
+    const void *code = getCurr();
+    COMP_GEN(GE);
+
+    return code;
+  }
 };
 
 #endif  /* ENABLE_JIT */
