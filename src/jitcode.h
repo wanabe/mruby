@@ -231,20 +231,32 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     add(eax, y);
     mov(dword [ecx + off], eax);
     jno("@f");
+    sub(esp, 8);
+    movsd(qword [esp], xmm1);
+    mov(eax, dword [ecx + off]);
     cvtsi2sd(xmm0, eax);
+    mov(eax, y);
+    cvtsi2sd(xmm1, eax);
+    addsd(xmm0, xmm1);
     movsd(dword [ecx + off], xmm0);
+    movsd(xmm1, ptr [esp]);
+    add(esp, 8);
     L("@@");*/
     movw(r3, off);
     add(r3, r3, r1);
     ldr(r2, r3 + 4); /* Get type tag */
     gen_type_guard((enum mrb_vtype)mrb_type(regs[regno]), *ppc);
-    ldr(r2, r3);
-    adds(r2, r2, y);
+    ldr(r4, r3);
+    adds(r2, r4, y);
     str(r2, r3);
-    bvc(2);
-    fmsr(s0, r2);
+    bvc(6);
+    fmsr(s0, r4);
     fsitod(d0, s0);
-    fstd(d2, r3);
+    movw(r2, y);
+    fmsr(s2, r2);
+    fsitod(d1, s2);
+    faddd(d0, d0, d1);
+    fstd(d0, r3);
 
     return code;
   }
