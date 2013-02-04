@@ -27,7 +27,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
  public:
 
  MRBJitCode():
-  CodeGenerator(1024)
+  CodeGenerator(1024 * 1024)
   {
   }
 
