@@ -55,7 +55,8 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     b(entry);
   }
 
-  void gen_type_guard(enum mrb_vtype tt, mrb_code *mruby_pc)
+  void 
+    gen_type_guard(enum mrb_vtype tt, mrb_code *mruby_pc)
   {
     /* Input eax for type tag
     if (tt == MRB_TT_FLOAT) {
@@ -74,6 +75,29 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     else {
       cmp(r2, tt);
       /*jz("@f");*/
+      beq(3);
+    }
+
+    /* Guard fail exit code */
+    /*mov(dword [ebx], (Xbyak::uint32)pc);
+    ret();*/
+    ldr(r3, pc + 4);
+    str(r3, r0);
+    mov(pc, lr);
+    dd((Xtaak::uint32)mruby_pc);
+  }
+
+  void
+    gen_bool_guard(int b, mrb_code *mruby_pc)
+  {
+    /* Input eax for tested boolean */
+    /*cmp(eax, 0xfff00001);*/
+    add(r2, r2, 0x100000);
+    cmp(r2, 1);
+    if (b) {
+      bne(3);
+    }
+    else {
       beq(3);
     }
 
@@ -393,6 +417,48 @@ do {                                                                 \
   {
     const void *code = getCurr();
     COMP_GEN(GE);
+
+    return code;
+  }
+
+  const void *
+    emit_jmpif(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs)
+  {
+    const void *code = getCurr();
+    const int cond = GETARG_A(**ppc);
+    const Xtaak::uint32 coff =  cond * sizeof(mrb_value);
+    
+    /*mov(eax, ptr [ecx + coff + 4]);*/
+    movw(r3, coff + 4);
+    add(r3, r3, r1);
+    ldr(r2, r3);
+    if (mrb_test(regs[cond])) {
+      gen_bool_guard(1, *ppc + 1);
+    }
+    else {
+      gen_bool_guard(0, *ppc + GETARG_sBx(**ppc));
+    }
+
+    return code;
+  }
+
+  const void *
+    emit_jmpnot(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs)
+  {
+    const void *code = getCurr();
+    const int cond = GETARG_A(**ppc);
+    const Xtaak::uint32 coff =  cond * sizeof(mrb_value);
+    
+    /*mov(eax, ptr [ecx + coff + 4]);*/
+    movw(r3, coff + 4);
+    add(r3, r3, r1);
+    ldr(r2, r3);
+    if (!mrb_test(regs[cond])) {
+      gen_bool_guard(0, *ppc + 1);
+    }
+    else {
+      gen_bool_guard(1, *ppc + GETARG_sBx(**ppc));
+    }
 
     return code;
   }
