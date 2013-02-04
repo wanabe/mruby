@@ -111,6 +111,13 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   const void *
+    emit_nop(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
+  {
+    const void *code = getCurr();
+    return code;
+  }
+
+  const void *
     emit_move(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
   {
     const void *code = getCurr();

@@ -33,6 +33,9 @@ mrbjit_emit_code(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs
   }
 
   switch(GET_OPCODE(**ppc)) {
+  case OP_NOP:
+    return code->emit_nop(mrb, irep, ppc);
+    
   case OP_MOVE:
     return code->emit_move(mrb, irep, ppc);
 
