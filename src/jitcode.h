@@ -288,6 +288,7 @@ do {                                                                 \
     /*mov(eax, dword [ecx + off0]);*/                                \
     /*cmp(eax, dword [ecx + off1]);*/                                \
     /*CMPINST(al);*/                                                 \
+    /*mov(ah, 0);*/                                                  \
     /*cwde();*/                                                      \
     /*add(eax, eax);*/                                               \
     /*add(eax, 0xfff00001);*/                                        \
@@ -307,6 +308,7 @@ do {                                                                 \
 #define COMP_GEN_IF(CMPINST)                                         \
 do {                                                                 \
     /*cvtsi2sd(xmm0, ptr [ecx + off0]);*/                            \
+    /*xor(eax, eax);*/                                               \
     /*comisd(xmm0, ptr [ecx + off1]);*/                              \
     /*CMPINST(al);*/                                                 \
     /*cwde();*/                                                      \
@@ -333,6 +335,7 @@ do {                                                                 \
     /*movsd(qword [esp], xmm1);*/                                    \
     /*movsd(xmm0, ptr [ecx + off0]);*/                               \
     /*cvtsi2sd(xmm1, ptr [ecx + off1]);*/                            \
+    /*xor(eax, eax);*/                                               \
     /*comisd(xmm0, xmm1);*/                                          \
     /*CMPINST(al);*/                                                 \
     /*cwde();*/                                                      \
@@ -358,6 +361,7 @@ do {                                                                 \
 #define COMP_GEN_FF(CMPINST)                                         \
 do {                                                                 \
     /*movsd(xmm0, dword [ecx + off0]);*/                             \
+    /*xor(eax, eax);*/                                                \
     /*comisd(xmm0, ptr [ecx + off1]);*/                              \
     /*CMPINST(al);*/                                                 \
     /*cwde();*/                                                      \
