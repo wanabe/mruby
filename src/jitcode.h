@@ -289,20 +289,9 @@ do {                                                                 \
     /*cmp(eax, dword [ecx + off1]);*/                                \
     /*CMPINST(al);*/                                                 \
     /*mov(ah, 0);*/                                                  \
-    /*cwde();*/                                                      \
-    /*add(eax, eax);*/                                               \
-    /*add(eax, 0xfff00001);*/                                        \
-    /*mov(dword [ecx + off0 + 4], eax);*/                            \
-    /*mov(dword [ecx + off0], 1);*/                                  \
     ldr(r2, r4);                                                     \
     ldr(r3, r5);                                                     \
     cmp(r2, r3);                                                     \
-    mov32(r3, mrb_mktt(MRB_TT_FALSE));                               \
-    setCond(CMPINST);                                                \
-    add(r3, r3, MRB_TT_TRUE - MRB_TT_FALSE);                         \
-    setCond(AL);                                                     \
-    movw(r2, 1);                                                     \
-    stm(r4, r2, r3);                                                 \
 } while(0)
 
 #define COMP_GEN_IF(CMPINST)                                         \
@@ -311,22 +300,11 @@ do {                                                                 \
     /*xor(eax, eax);*/                                               \
     /*comisd(xmm0, ptr [ecx + off1]);*/                              \
     /*CMPINST(al);*/                                                 \
-    /*cwde();*/                                                      \
-    /*add(eax, eax);*/                                               \
-    /*add(eax, 0xfff00001);*/                                        \
-    /*mov(dword [ecx + off0 + 4], eax);*/                            \
-    /*mov(dword [ecx + off0], 1);*/                                  \
     flds(s0, r4);                                                    \
     fsitod(d0, s0);                                                  \
     fldd(d1, r5);                                                    \
     fcmpd(d0, d1);                                                   \
     fmstat();                                                        \
-    mov32(r3, mrb_mktt(MRB_TT_FALSE));                               \
-    setCond(CMPINST);                                                \
-    add(r3, r3, MRB_TT_TRUE - MRB_TT_FALSE);                         \
-    setCond(AL);                                                     \
-    movw(r2, 1);                                                     \
-    stm(r4, r2, r3);                                                 \
 } while(0)
 
 #define COMP_GEN_FI(CMPINST)                                         \
@@ -338,11 +316,6 @@ do {                                                                 \
     /*xor(eax, eax);*/                                               \
     /*comisd(xmm0, xmm1);*/                                          \
     /*CMPINST(al);*/                                                 \
-    /*cwde();*/                                                      \
-    /*add(eax, eax);*/                                               \
-    /*add(eax, 0xfff00001);*/                                        \
-    /*mov(dword [ecx + off0 + 4], eax);*/                            \
-    /*mov(dword [ecx + off0], 1);*/                                  \
     /*movsd(xmm1, ptr [esp]);*/                                      \
     /*add(esp, 8);*/                                                 \
     fldd(d0, r4);                                                    \
@@ -350,12 +323,6 @@ do {                                                                 \
     fsitod(d1, s2);                                                  \
     fcmpd(d0, d1);                                                   \
     fmstat();                                                        \
-    mov32(r3, mrb_mktt(MRB_TT_FALSE));                               \
-    setCond(CMPINST);                                                \
-    add(r3, r3, MRB_TT_TRUE - MRB_TT_FALSE);                         \
-    setCond(AL);                                                     \
-    movw(r2, 1);                                                     \
-    stm(r4, r2, r3);                                                 \
 } while(0)
 
 #define COMP_GEN_FF(CMPINST)                                         \
@@ -364,21 +331,10 @@ do {                                                                 \
     /*xor(eax, eax);*/                                                \
     /*comisd(xmm0, ptr [ecx + off1]);*/                              \
     /*CMPINST(al);*/                                                 \
-    /*cwde();*/                                                      \
-    /*add(eax, eax);*/                                               \
-    /*add(eax, 0xfff00001);*/                                        \
-    /*mov(dword [ecx + off0 + 4], eax);*/                            \
-    /*mov(dword [ecx + off0], 1);*/                                  \
     fldd(d0, r4);                                                    \
     fldd(d1, r5);                                                    \
     fcmpd(d0, d1);                                                   \
     fmstat();                                                        \
-    mov32(r3, mrb_mktt(MRB_TT_FALSE));                               \
-    setCond(CMPINST);                                                \
-    add(r3, r3, MRB_TT_TRUE - MRB_TT_FALSE);                         \
-    setCond(AL);                                                     \
-    movw(r2, 1);                                                     \
-    stm(r4, r2, r3);                                                 \
 } while(0)
     
 #define COMP_GEN(CMPINST)                                            \
@@ -412,8 +368,19 @@ do {                                                                 \
     else {                                                           \
           COMP_GEN_II(CMPINST);                                      \
     }                                                                \
-} while(0)
-
+    /*cwde();*/                                                      \
+    /*add(eax, eax);*/                                               \
+    /*add(eax, 0xfff00001);*/                                        \
+    /*mov(dword [ecx + off0 + 4], eax);*/                            \
+    /*mov(dword [ecx + off0], 1);*/                                  \
+    mov32(r3, mrb_mktt(MRB_TT_FALSE));                               \
+    setCond(CMPINST);                                                \
+    add(r3, r3, MRB_TT_TRUE - MRB_TT_FALSE);                         \
+    setCond(AL);                                                     \
+    movw(r2, 1);                                                     \
+    stm(r4, r2, r3);                                                 \
+ } while(0)
+  
   const void *
     emit_eq(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
