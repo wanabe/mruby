@@ -240,46 +240,87 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     return code;
   }
 
+#define ARTH_I_GEN(AINSTI, AINSTF)                                      \
+  do {                                                                  \
+    const Xtaak::uint32 y = GETARG_C(**ppc);                            \
+    const Xtaak::uint32 off = GETARG_A(**ppc) * sizeof(mrb_value);      \
+    int regno = GETARG_A(**ppc);                                        \
+    enum mrb_vtype atype = (enum mrb_vtype) mrb_type(regs[regno]);      \
+    /*mov(eax, dword [ecx + off + 4]); /* Get type tag */               \
+    movw(r3, off);                                                      \
+    add(r3, r3, r1);                                                    \
+    ldr(r2, r3 + 4); /* Get type tag */                                 \
+    gen_type_guard(atype, *ppc);                                        \
+\
+    if (atype == MRB_TT_FIXNUM) {                                       \
+      /*mov(eax, dword [ecx + off]);*/                                  \
+      /*AINSTI(eax, y);*/                                               \
+      /*mov(dword [ecx + off], eax);*/                                  \
+      ldr(r4, r3);                                                      \
+      AINSTI(r2, r4, y);                                                \
+      str(r2, r3);                                                      \
+\
+      /*jno("@f");*/                                                    \
+      /*sub(esp, 8);*/                                                  \
+      /*movsd(qword [esp], xmm1);*/                                     \
+      /*mov(eax, dword [ecx + off]);*/                                  \
+      /*cvtsi2sd(xmm0, eax);*/                                          \
+      /*mov(eax, y);*/                                                  \
+      /*cvtsi2sd(xmm1, eax);*/                                          \
+      /*AINSTF(xmm0, xmm1);*/                                           \
+      /*movsd(dword [ecx + off], xmm0);*/                               \
+      /*movsd(xmm1, ptr [esp]);*/                                       \
+      /*add(esp, 8);*/                                                  \
+      /*L("@@");*/                                                      \
+      bvc(6);                                                           \
+      fmsr(s0, r4);                                                     \
+      fsitod(d0, s0);                                                   \
+      movw(r2, y);                                                      \
+      fmsr(s2, r2);                                                     \
+      fsitod(d1, s2);                                                   \
+      AINSTF(d0, d0, d1);                                               \
+      fstd(d0, r3);                                                     \
+    }                                                                   \
+    else if (atype == MRB_TT_FLOAT) {                                   \
+      /*sub(esp, 8);*/                                                  \
+      /*movsd(qword [esp], xmm1);*/                                     \
+      /*movsd(xmm0, dword [ecx + off]);*/                               \
+      /*mov(eax, y);*/                                                  \
+      /*cvtsi2sd(xmm1, eax);*/                                          \
+      /*AINSTF(xmm0, xmm1);*/                                           \
+      /*movsd(ptr [ecx + off], xmm0);*/                                 \
+      /*movsd(xmm1, ptr [esp]);*/                                       \
+      /*add(esp, 8);*/                                                  \
+      fldd(d0, r3);                                                     \
+      movw(r2, y);                                                      \
+      fmsr(s2, r2);                                                     \
+      fsitod(d1, s2);                                                   \
+      AINSTF(d0, d0, d1);                                               \
+      fstd(d0, r3);                                                     \
+    }                                                                   \
+    else {                                                              \
+      /*mov(dword [ebx], (Xbyak::uint32)*ppc);*/                        \
+      /*ret();*/                                                        \
+      ldr(r3, pc + 4);                                                  \
+      str(r3, r0);                                                      \
+      mov(pc, lr);                                                      \
+      dd((Xtaak::uint32)*ppc);                                          \
+    }                                                                   \
+} while(0)
+    
   const void *
     emit_addi(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    const Xtaak::uint32 y = GETARG_C(**ppc);
-    const Xtaak::uint32 off = GETARG_A(**ppc) * sizeof(mrb_value);
-    int regno = GETARG_A(**ppc);
-    /*mov(eax, dword [ecx + off + 4]); // Get type tag
-    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno]), *ppc);
-    mov(eax, dword [ecx + off]);
-    add(eax, y);
-    mov(dword [ecx + off], eax);
-    jno("@f");
-    sub(esp, 8);
-    movsd(qword [esp], xmm1);
-    mov(eax, dword [ecx + off]);
-    cvtsi2sd(xmm0, eax);
-    mov(eax, y);
-    cvtsi2sd(xmm1, eax);
-    addsd(xmm0, xmm1);
-    movsd(dword [ecx + off], xmm0);
-    movsd(xmm1, ptr [esp]);
-    add(esp, 8);
-    L("@@");*/
-    movw(r3, off);
-    add(r3, r3, r1);
-    ldr(r2, r3 + 4); /* Get type tag */
-    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno]), *ppc);
-    ldr(r4, r3);
-    adds(r2, r4, y);
-    str(r2, r3);
-    bvc(6);
-    fmsr(s0, r4);
-    fsitod(d0, s0);
-    movw(r2, y);
-    fmsr(s2, r2);
-    fsitod(d1, s2);
-    faddd(d0, d0, d1);
-    fstd(d0, r3);
+    ARTH_I_GEN(adds, faddd);
+    return code;
+  }
 
+  const void *
+    emit_subi(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
+  {
+    const void *code = getCurr();
+    ARTH_I_GEN(subs, fsubd);
     return code;
   }
 
