@@ -43,9 +43,10 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   {
     /*mov(dword [ebx], (Xbyak::uint32)pc);
     ret();*/
-    ldr(r3, pc + 4);
+    ldr(r3, "@f");
     str(r3, r0);
     mov(pc, lr);
+    L("@@");
     dd((Xtaak::uint32)mruby_pc);
   }
   
@@ -70,21 +71,21 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     /* Input r2 for type tag */
     adds(r2, r2, 0x100000);
     if (tt == MRB_TT_FLOAT) {
-      bcc(3);
+      bcc("@f");
     }
     else {
       cmp(r2, tt);
       /*jz("@f");*/
-      beq(3);
+      beq("@f");
     }
 
     /* Guard fail exit code */
     /*mov(dword [ebx], (Xbyak::uint32)pc);
     ret();*/
-    ldr(r3, pc + 4);
+    mov32(r3, (Xtaak::uint32)mruby_pc);
     str(r3, r0);
     mov(pc, lr);
-    dd((Xtaak::uint32)mruby_pc);
+    L("@@");
   }
 
   void
@@ -95,19 +96,19 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     add(r2, r2, 0x100000);
     cmp(r2, 1);
     if (b) {
-      bne(3);
+      bne("@f");
     }
     else {
-      beq(3);
+      beq("@f");
     }
 
     /* Guard fail exit code */
     /*mov(dword [ebx], (Xbyak::uint32)pc);
     ret();*/
-    ldr(r3, pc + 4);
+    mov32(r3, (Xtaak::uint32)mruby_pc);
     str(r3, r0);
     mov(pc, lr);
-    dd((Xtaak::uint32)mruby_pc);
+    L("@@");
   }
 
   const void *
@@ -272,7 +273,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
       /*movsd(xmm1, ptr [esp]);*/                                       \
       /*add(esp, 8);*/                                                  \
       /*L("@@");*/                                                      \
-      bvc(6);                                                           \
+      bvc("@f");                                                        \
       fmsr(s0, r4);                                                     \
       fsitod(d0, s0);                                                   \
       movw(r2, y);                                                      \
@@ -280,6 +281,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
       fsitod(d1, s2);                                                   \
       AINSTF(d0, d0, d1);                                               \
       fstd(d0, r3);                                                     \
+      L("@@");                                                          \
     }                                                                   \
     else if (atype == MRB_TT_FLOAT) {                                   \
       /*sub(esp, 8);*/                                                  \
@@ -301,9 +303,10 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     else {                                                              \
       /*mov(dword [ebx], (Xbyak::uint32)*ppc);*/                        \
       /*ret();*/                                                        \
-      ldr(r3, pc + 4);                                                  \
+      ldr(r3, "@f");                                                    \
       str(r3, r0);                                                      \
       mov(pc, lr);                                                      \
+      L("@@");                                                          \
       dd((Xtaak::uint32)*ppc);                                          \
     }                                                                   \
 } while(0)
