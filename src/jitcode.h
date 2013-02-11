@@ -533,6 +533,75 @@ do {                                                                 \
   }
 
   const void *
+    emit_getupvar(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
+  {
+    const void *code = getCurr();
+    const Xtaak::uint32 uppos = GETARG_C(**ppc);
+    const Xtaak::uint32 idxpos = GETARG_B(**ppc);
+    const Xtaak::uint32 dstoff = GETARG_A(**ppc) * sizeof(mrb_value);
+    /*const int argsize = 3 * sizeof(void *);*/
+
+    /*push(ecx);
+    push(ebx);
+    push((Xbyak::uint32)idxpos);
+    push((Xbyak::uint32)uppos);
+    push((Xbyak::uint32)mrb);
+    call((void *)mrb_uvget);
+    add(sp, argsize);
+    pop(ebx);
+    pop(ecx);
+    mov(dword [ecx + dstoff], eax);
+    mov(dword [ecx + dstoff + 4], edx);*/
+    push(r0, r1, fp, lr);
+    movw(r0, dstoff);
+    add(r0, r0, r1);
+    mov32(r1, (Xtaak::uint32)mrb);
+    mov32(r2, (Xtaak::uint32)uppos);
+    mov32(r3, (Xtaak::uint32)idxpos);
+    bl((void *)mrb_uvget);
+    pop(r0, r1, fp, lr);
+
+    return code;
+  }
+
+  const void *
+    emit_setupvar(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
+  {
+    const void *code = getCurr();
+    const Xtaak::uint32 uppos = GETARG_C(**ppc);
+    const Xtaak::uint32 idxpos = GETARG_B(**ppc);
+    const Xtaak::uint32 valoff = GETARG_A(**ppc) * sizeof(mrb_value);
+    /*const int argsize = 5 * sizeof(void *);*/
+
+    /*push(ecx);
+    push(ebx);
+    mov(eax, dword [ecx + valoff + 4]);
+    push(eax);
+    mov(eax, dword [ecx + valoff]);
+    push(eax);
+    push((Xbyak::uint32)idxpos);
+    push((Xbyak::uint32)uppos);
+    push((Xbyak::uint32)mrb);
+    call((void *)mrb_uvset);
+    add(sp, argsize);
+    pop(ebx);
+    pop(ecx);*/
+    push(r0, r1, fp, lr);
+    movw(r0, valoff + 4);
+    add(r0, r0, r1);
+    ldmda(r0, r2, r3);
+    push(r2, r3);
+    mov32(r0, (Xtaak::uint32)mrb);
+    mov32(r1, (Xtaak::uint32)uppos);
+    mov32(r2, (Xtaak::uint32)idxpos);
+    bl((void *)mrb_uvset);
+    add(sp, sp, 8);
+    pop(r0, r1, fp, lr);
+
+    return code;
+  }
+
+  const void *
     emit_jmpif(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs)
   {
     const void *code = getCurr();
