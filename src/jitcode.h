@@ -146,10 +146,10 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     movsd(xmm0, ptr [eax]);
     movsd(ptr [ecx + dstoff], xmm0);*/
     mov32(r3, (Xtaak::uint32)irep->pool + srcoff);
-    ldm(r3, r4, r5, r6, r7);
+    ldm(r3, r4, r5);
     movw(r3, dstoff);
     add(r3, r3, r1);
-    stm(r3, r4, r5, r6, r7);
+    stm(r3, r4, r5);
 
     return code;
   }
