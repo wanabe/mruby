@@ -243,15 +243,12 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(dword [ecx + dstoff], eax);
     mov(dword [ecx + dstoff + 4], edx);*/
     push(r0, r1, fp, lr);
-    sub(sp, sp, 8);
+    movw(r0, dstoff);
+    add(r0, r0, r1);
     mov32(r1, (Xtaak::uint32)mrb);
     mov32(r2, (Xtaak::uint32)irep->syms[idpos]);
     bl((void *)mrb_vm_iv_get);
-    add(sp, sp, 8);
     pop(r0, r1, fp, lr);
-    movw(r4, dstoff);
-    add(r4, r4, r1);
-    stm(r4, r2, r3);
 
     return code;
   }
