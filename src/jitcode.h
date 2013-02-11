@@ -254,6 +254,38 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   const void *
+    emit_setiv(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
+  {
+    const void *code = getCurr();
+    const Xtaak::uint32 idpos = GETARG_Bx(**ppc);
+    const Xtaak::uint32 srcoff = GETARG_A(**ppc) * sizeof(mrb_value);
+    /*const int argsize = 4 * sizeof(void *);*/
+
+    /*push(ecx);
+    push(ebx);
+    mov(eax, dword [ecx + srcoff + 4]);
+    push(eax);
+    mov(eax, dword [ecx + srcoff]);
+    push(eax);
+    push((Xbyak::uint32)irep->syms[idpos]);
+    push((Xbyak::uint32)mrb);
+    call((void *)mrb_vm_iv_set);
+    add(sp, argsize);
+    pop(ebx);
+    pop(ecx);*/
+    push(r0, r1, fp, lr);
+    movw(r0, srcoff);
+    add(r0, r0, r1);
+    ldm(r0, r2, r3);
+    mov32(r0, (Xtaak::uint32)mrb);
+    mov32(r1, (Xtaak::uint32)irep->syms[idpos]);
+    bl((void *)mrb_vm_iv_set);
+    pop(r0, r1, fp, lr);
+
+    return code;
+  }
+
+  const void *
     emit_loadnil(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc) 
   {
     const void *code = getCurr();
