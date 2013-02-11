@@ -303,6 +303,141 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     return code;
   }
 
+#define OVERFLOW_CHECK_GEN(AINSTF)                                      \
+    /*jno("@f");*/                                                      \
+    /*sub(esp, 8);*/                                                    \
+    /*movsd(qword [esp], xmm1);*/                                       \
+    /*mov(eax, dword [ecx + reg0off]);*/                                \
+    /*cvtsi2sd(xmm0, eax);*/                                            \
+    /*mov(eax, dword [ecx + reg1off]);*/                                \
+    /*cvtsi2sd(xmm1, eax);*/                                            \
+    /*AINSTF(xmm0, xmm1);*/                                             \
+    /*movsd(dword [ecx + reg0off], xmm0);*/                             \
+    /*movsd(xmm1, ptr [esp]);*/                                         \
+    /*add(esp, 8);*/                                                    \
+    /*L("@@");*/                                                        \
+    bvc("@f");                                                          \
+    fmsr(s0, r6);                                                       \
+    fsitod(d0, s0);                                                     \
+    fmsr(s2, r3);                                                       \
+    fsitod(d1, s2);                                                     \
+    AINSTF(d0, d0, d1);                                                 \
+    fstd(d0, r4);                                                       \
+    L("@@");                                                            \
+
+#define ARTH_GEN(AINSTI, AINSTF)                                        \
+  do {                                                                  \
+    int reg0pos = GETARG_A(**ppc);                                      \
+    int reg1pos = reg0pos + 1;                                          \
+    const Xtaak::uint32 reg0off = reg0pos * sizeof(mrb_value);          \
+    const Xtaak::uint32 reg1off = reg1pos * sizeof(mrb_value);          \
+    enum mrb_vtype r0type = (enum mrb_vtype) mrb_type(regs[reg0pos]);   \
+    enum mrb_vtype r1type = (enum mrb_vtype) mrb_type(regs[reg1pos]);   \
+\
+    if (r0type != r1type) {                                             \
+      /*mov(dword [ebx], (Xbyak::uint32)*ppc);*/                        \
+      /*ret();*/                                                        \
+      ldr(r3, "@f");                                                    \
+      str(r3, r0);                                                      \
+      mov(pc, lr);                                                      \
+      L("@@");                                                          \
+      dd((Xtaak::uint32)*ppc);                                          \
+    }                                                                   \
+    /*mov(eax, dword [ecx + reg0off + 4]); /* Get type tag */           \
+    movw(r4, reg0off);                                                  \
+    add(r4, r4, r1);                                                    \
+    ldr(r2, r4 + 4);                                                    \
+    gen_type_guard(r0type, *ppc);                                       \
+    /*mov(eax, dword [ecx + reg1off + 4]); /* Get type tag */           \
+    movw(r5, reg1off);                                                  \
+    add(r5, r5, r1);                                                    \
+    ldr(r2, r5 + 4);                                                    \
+    gen_type_guard(r1type, *ppc);                                       \
+\
+    if (r0type == MRB_TT_FIXNUM && r1type == MRB_TT_FIXNUM) {           \
+      /*mov(eax, dword [ecx + reg0off]);*/                              \
+      /*AINSTI(eax, dword [ecx + reg1off]);*/                           \
+      /*mov(dword [ecx + reg0off], eax);*/                              \
+      ldr(r6, r4);                                                      \
+      ldr(r3, r5);                                                      \
+      AINSTI(r2, r6, r3);                                               \
+      str(r2, r4);                                                      \
+      OVERFLOW_CHECK_GEN(AINSTF);                                       \
+    }                                                                   \
+    else if (r0type == MRB_TT_FLOAT && r1type == MRB_TT_FLOAT) {        \
+      /*movsd(xmm0, ptr [ecx + reg0off]);*/                             \
+      /*AINSTF(xmm0, ptr [ecx + reg1off]);*/                            \
+      /*movsd(ptr [ecx + reg0off], xmm0);*/                             \
+      fldd(d0, r4);                                                     \
+      fldd(d1, r5);                                                     \
+      AINSTF(d0, d0, d1);                                               \
+      fstd(d0, r4);                                                     \
+    }                                                                   \
+    else {                                                              \
+      /*mov(dword [ebx], (Xbyak::uint32)*ppc);*/                        \
+      /*ret();*/                                                        \
+      ldr(r3, "@f");                                                    \
+      str(r3, r0);                                                      \
+      mov(pc, lr);                                                      \
+      L("@@");                                                          \
+      dd((Xtaak::uint32)*ppc);                                          \
+    }                                                                   \
+} while(0)
+
+  const void *
+    emit_add(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
+  {
+    const void *code = getCurr();
+    ARTH_GEN(adds, faddd);
+    return code;
+  }
+
+  const void *
+    emit_sub(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
+  {
+    const void *code = getCurr();
+    ARTH_GEN(subs, fsubd);
+    return code;
+  }
+
+  const void *
+    emit_mul(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
+  {
+    const void *code = getCurr();
+    //ARTH_GEN(imul, mulsd);
+    return code;
+  }
+
+  const void *
+    emit_div(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
+  {
+    const void *code = getCurr();
+    return code;
+  }
+
+#define OVERFLOW_CHECK_I_GEN(AINSTF)                                    \
+    /*jno("@f");*/                                                      \
+    /*sub(esp, 8);*/                                                    \
+    /*movsd(qword [esp], xmm1);*/                                       \
+    /*mov(eax, dword [ecx + off]);*/                                    \
+    /*cvtsi2sd(xmm0, eax);*/                                            \
+    /*mov(eax, y);*/                                                    \
+    /*cvtsi2sd(xmm1, eax);*/                                            \
+    /*AINSTF(xmm0, xmm1);*/                                             \
+    /*movsd(dword [ecx + off], xmm0);*/                                 \
+    /*movsd(xmm1, ptr [esp]);*/                                         \
+    /*add(esp, 8);*/                                                    \
+    /*L("@@");*/                                                        \
+    bvc("@f");                                                          \
+    fmsr(s0, r4);                                                       \
+    fsitod(d0, s0);                                                     \
+    movw(r2, y);                                                        \
+    fmsr(s2, r2);                                                       \
+    fsitod(d1, s2);                                                     \
+    AINSTF(d0, d0, d1);                                                 \
+    fstd(d0, r3);                                                       \
+    L("@@");                                                            \
+
 #define ARTH_I_GEN(AINSTI, AINSTF)                                      \
   do {                                                                  \
     const Xtaak::uint32 y = GETARG_C(**ppc);                            \
@@ -322,33 +457,12 @@ class MRBJitCode: public Xtaak::CodeGenerator {
       ldr(r4, r3);                                                      \
       AINSTI(r2, r4, y);                                                \
       str(r2, r3);                                                      \
-\
-      /*jno("@f");*/                                                    \
-      /*sub(esp, 8);*/                                                  \
-      /*movsd(qword [esp], xmm1);*/                                     \
-      /*mov(eax, dword [ecx + off]);*/                                  \
-      /*cvtsi2sd(xmm0, eax);*/                                          \
-      /*mov(eax, y);*/                                                  \
-      /*cvtsi2sd(xmm1, eax);*/                                          \
-      /*AINSTF(xmm0, xmm1);*/                                           \
-      /*movsd(dword [ecx + off], xmm0);*/                               \
-      /*movsd(xmm1, ptr [esp]);*/                                       \
-      /*add(esp, 8);*/                                                  \
-      /*L("@@");*/                                                      \
-      bvc("@f");                                                        \
-      fmsr(s0, r4);                                                     \
-      fsitod(d0, s0);                                                   \
-      movw(r2, y);                                                      \
-      fmsr(s2, r2);                                                     \
-      fsitod(d1, s2);                                                   \
-      AINSTF(d0, d0, d1);                                               \
-      fstd(d0, r3);                                                     \
-      L("@@");                                                          \
+      OVERFLOW_CHECK_I_GEN(AINSTF);                                     \
     }                                                                   \
     else if (atype == MRB_TT_FLOAT) {                                   \
       /*sub(esp, 8);*/                                                  \
       /*movsd(qword [esp], xmm1);*/                                     \
-      /*movsd(xmm0, dword [ecx + off]);*/                               \
+      /*movsd(xmm0, ptr [ecx + off]);*/                                 \
       /*mov(eax, y);*/                                                  \
       /*cvtsi2sd(xmm1, eax);*/                                          \
       /*AINSTF(xmm0, xmm1);*/                                           \
