@@ -286,6 +286,28 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   const void *
+    emit_getconst(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
+  {
+    const void *code = getCurr();
+    const Xtaak::uint32 dstoff = GETARG_A(**ppc) * sizeof(mrb_value);
+    const int sympos = GETARG_Bx(**ppc);
+    const mrb_value v = mrb_vm_const_get(mrb, irep->syms[sympos]);
+
+    /*mov(dword [ecx + dstoff], v.value.i);
+    mov(dword [ecx + dstoff + 4], v.ttt);*/
+    ldrd(r2, "@f");
+    movw(r4, dstoff);
+    add(r4, r4, r1);
+    stm(r4, r2, r3);
+    b(1);
+    L("@@");
+    dd((Xtaak::uint32)v.value.i);
+    dd((Xtaak::uint32)v.ttt);
+
+    return code;
+  }
+
+  const void *
     emit_loadnil(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc) 
   {
     const void *code = getCurr();
@@ -657,8 +679,8 @@ do {                                                                 \
 
     /*push(ecx);
     push(ebx);
-    push((Xbyak::uint32)idxpos);
-    push((Xbyak::uint32)uppos);
+    push(idxpos);
+    push(uppos);
     push((Xbyak::uint32)mrb);
     call((void *)mrb_uvget);
     add(sp, argsize);
@@ -670,8 +692,8 @@ do {                                                                 \
     movw(r0, dstoff);
     add(r0, r0, r1);
     mov32(r1, (Xtaak::uint32)mrb);
-    mov32(r2, (Xtaak::uint32)uppos);
-    mov32(r3, (Xtaak::uint32)idxpos);
+    mov32(r2, uppos);
+    mov32(r3, idxpos);
     bl((void *)mrb_uvget);
     pop(r0, r1, fp, lr);
 
@@ -693,8 +715,8 @@ do {                                                                 \
     push(eax);
     mov(eax, dword [ecx + valoff]);
     push(eax);
-    push((Xbyak::uint32)idxpos);
-    push((Xbyak::uint32)uppos);
+    push(idxpos);
+    push(uppos);
     push((Xbyak::uint32)mrb);
     call((void *)mrb_uvset);
     add(sp, argsize);
@@ -706,8 +728,8 @@ do {                                                                 \
     ldmda(r0, r2, r3);
     push(r2, r3);
     mov32(r0, (Xtaak::uint32)mrb);
-    mov32(r1, (Xtaak::uint32)uppos);
-    mov32(r2, (Xtaak::uint32)idxpos);
+    mov32(r1, uppos);
+    mov32(r2, idxpos);
     bl((void *)mrb_uvset);
     add(sp, sp, 8);
     pop(r0, r1, fp, lr);
