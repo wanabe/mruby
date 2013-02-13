@@ -357,13 +357,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     enum mrb_vtype r1type = (enum mrb_vtype) mrb_type(regs[reg1pos]);   \
 \
     if (r0type != r1type) {                                             \
-      /*mov(dword [ebx], (Xbyak::uint32)*ppc);*/                        \
-      /*ret();*/                                                        \
-      ldr(r3, "@f");                                                    \
-      str(r3, r0);                                                      \
-      mov(pc, lr);                                                      \
-      L("@@");                                                          \
-      dd((Xtaak::uint32)*ppc);                                          \
+      return NULL;                                                      \
     }                                                                   \
     /*mov(eax, dword [ecx + reg0off + 4]); /* Get type tag */           \
     movw(r4, reg0off);                                                  \
