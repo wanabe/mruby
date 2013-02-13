@@ -490,11 +490,9 @@ argnum_error(mrb_state *mrb, int num)
 }
 
 #ifdef ENABLE_JIT
-void mrbjit_dispatch(mrb_state *, mrb_irep *, mrb_code **, mrb_value *);
-void mrbjit_dispatch_local_jump(mrb_state *, mrb_irep *, mrb_code **, mrb_value *);
+void mrbjit_dispatch(mrb_state *, mrbjit_vmstatus *);
 #else
-#define mrbjit_dispatch(mrb, irep, ppc, regs)
-#define mrbjit_dispatch_local_jump(mrb, irep, ppc, regs)
+#define mrbjit_dispatch(mrb, status)
 #endif
 
 #ifdef __GNUC__
@@ -508,16 +506,14 @@ void mrbjit_dispatch_local_jump(mrb_state *, mrb_irep *, mrb_code **, mrb_value 
 #define CASE(op) case op:
 #define NEXT pc++; break
 #define JUMP break
-#define LJUMP break
 #define END_DISPATCH }}
 
 #else
 
 #define INIT_DISPATCH JUMP; return mrb_nil_value();
 #define CASE(op) L_ ## op:
-#define NEXT ++pc;mrbjit_dispatch(mrb, irep, &pc, regs);i=*pc; goto *optable[GET_OPCODE(i)]
-#define JUMP mrbjit_dispatch(mrb, irep, &pc, regs);i=*pc; goto *optable[GET_OPCODE(i)]
-#define LJUMP mrbjit_dispatch_local_jump(mrb, irep, &pc, regs);i=*pc; goto *optable[GET_OPCODE(i)]
+#define NEXT ++pc;mrbjit_dispatch(mrb, &status);i=*pc; goto *optable[GET_OPCODE(i)]
+#define JUMP mrbjit_dispatch(mrb, &status);i=*pc; goto *optable[GET_OPCODE(i)]
 
 #define END_DISPATCH
 
@@ -541,6 +537,9 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
   int ai = mrb_gc_arena_save(mrb);
   jmp_buf *prev_jmp = (jmp_buf *)mrb->jmp;
   jmp_buf c_jmp;
+  mrbjit_vmstatus status = {
+    &irep, &pc, &pool, &syms, &regs
+  };
 
 #ifdef DIRECT_THREADED
   static void *optable[] = {
@@ -722,14 +721,14 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
     CASE(OP_JMP) {
       /* sBx    pc+=sBx */
       pc += GETARG_sBx(i);
-      LJUMP;
+      JUMP;
     }
 
     CASE(OP_JMPIF) {
       /* A sBx  if R(A) pc+=sBx */
       if (mrb_test(regs[GETARG_A(i)])) {
         pc += GETARG_sBx(i);
-        LJUMP;
+        JUMP;
       }
       NEXT;
     }
@@ -738,7 +737,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
       /* A sBx  if R(A) pc+=sBx */
       if (!mrb_test(regs[GETARG_A(i)])) {
         pc += GETARG_sBx(i);
-        LJUMP;
+        JUMP;
       }
       NEXT;
     }
@@ -1155,7 +1154,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
         regs[len+1] = *blk; /* move block */
         pc += o + 1;
       }
-      LJUMP;
+      JUMP;
     }
 
     CASE(OP_KARG) {
