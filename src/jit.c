@@ -130,21 +130,21 @@ mrbjit_dispatch(mrb_state *mrb, mrbjit_vmstatus *status)
 	  :
 	  : "a"(ppc)
 	  : "%ebx");*/
-      asm("stmfd sp!, {r0, r1}");
-      asm("mov r1, %0"
+      asm("stmfd sp!, {r9, r10}");
+      asm("mov r10, %0"
 	  :
 	  : "r"(regs)
-          : "r1");
-      asm("mov r0, %0"
+          : "r10");
+      asm("mov r9, %0"
 	  :
 	  : "r"(ppc)
-          : "r0");
+          : "r9");
 
       ci->entry();
 
       /*asm("pop %ebx");
       asm("pop %ecx");*/
-      asm("ldmfd sp!, {r0, r1}");
+      asm("ldmfd sp!, {r9, r10}");
       //printf("%x \n", *ppc);
     }
   }
