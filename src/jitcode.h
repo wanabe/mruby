@@ -32,6 +32,23 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   {
   }
 
+  const Xtaak::Reg offset(const Xtaak::Reg &regSrc, Xtaak::uint32 off,
+                          const Xtaak::Reg &regDst) {
+    if (off < 0x100) {
+      return regSrc + off;
+    }
+    if (Xtaak::inner::isShifterImm(off)) {
+      add(regDst, regSrc, off);
+    } else if (off < 0x10000) {
+      movw(regDst, off);
+      add(regDst, regDst, regSrc);
+    } else {
+      mov32(regDst, off);
+      add(regDst, regDst, regSrc);
+    }
+    return regDst;
+  }
+
   const void *
     gen_entry(mrb_state *mrb, mrb_irep *irep) 
   {
@@ -127,12 +144,8 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     const Xtaak::uint32 srcoff = GETARG_B(**ppc) * sizeof(mrb_value);
     /*movsd(xmm0, ptr [ecx + srcoff]);
     movsd(ptr [ecx + dstoff], xmm0);*/
-    movw(r2, srcoff);
-    add(r2, r2, r10);
-    ldm(r2, r0, r1);
-    movw(r2, dstoff);
-    add(r2, r2, r10);
-    stm(r2, r0, r1);
+    ldrd(r0, offset(r10, srcoff, r2));
+    strd(r0, offset(r10, dstoff, r2));
     return code;
   }
 
@@ -146,10 +159,8 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     movsd(xmm0, ptr [eax]);
     movsd(ptr [ecx + dstoff], xmm0);*/
     mov32(r2, (Xtaak::uint32)irep->pool + srcoff);
-    ldm(r2, r0, r1);
-    movw(r2, dstoff);
-    add(r2, r2, r10);
-    stm(r2, r0, r1);
+    ldrd(r0, r2);
+    strd(r0, offset(r10, dstoff, r2));
 
     return code;
   }
@@ -166,9 +177,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(dword [ecx + dstoff + 4], eax);*/
     movw(r0, src);
     mov32(r1, mrb_mktt(MRB_TT_FIXNUM));
-    movw(r2, dstoff);
-    add(r2, r2, r10);
-    stm(r2, r0, r1);
+    strd(r0, offset(r10, dstoff, r2));
 
     return code;
   }
@@ -181,10 +190,8 @@ class MRBJitCode: public Xtaak::CodeGenerator {
 
     /*movsd(xmm0, ptr [ecx]);
     movsd(ptr [ecx + dstoff], xmm0);*/
-    ldm(r10, r0, r1);
-    movw(r2, dstoff);
-    add(r2, r2, r10);
-    stm(r2, r0, r1);
+    ldrd(r0, r10);
+    strd(r0, offset(r10, dstoff, r2));
     return code;
   }
 
@@ -199,9 +206,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(dword [ecx + dstoff + 4], eax);*/
     movw(r0, 1);
     mov32(r1, mrb_mktt(MRB_TT_TRUE));
-    movw(r2, dstoff);
-    add(r2, r2, r10);
-    stm(r2, r0, r1);
+    strd(r0, offset(r10, dstoff, r2));
 
     return code;
   }
@@ -217,9 +222,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(dword [ecx + dstoff + 4], eax);*/
     movw(r0, 1);
     mov32(r1, mrb_mktt(MRB_TT_FALSE));
-    movw(r2, dstoff);
-    add(r2, r2, r10);
-    stm(r2, r0, r1);
+    strd(r0, offset(r10, dstoff, r2));
 
     return code;
   }
@@ -274,9 +277,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     pop(ebx);
     pop(ecx);*/
     push(r9, r10, fp, lr);
-    movw(r0, srcoff);
-    add(r0, r0, r10);
-    ldm(r0, r2, r3);
+    ldrd(r2, offset(r10, srcoff, r0));
     mov32(r0, (Xtaak::uint32)mrb);
     mov32(r1, (Xtaak::uint32)irep->syms[idpos]);
     bl((void *)mrb_vm_iv_set);
@@ -296,9 +297,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     /*mov(dword [ecx + dstoff], v.value.i);
     mov(dword [ecx + dstoff + 4], v.ttt);*/
     ldrd(r0, "@f");
-    movw(r2, dstoff);
-    add(r2, r2, r10);
-    stm(r2, r0, r1);
+    strd(r0, offset(r10, dstoff, r2));
     b(1);
     L("@@");
     dd((Xtaak::uint32)v.value.i);
@@ -318,9 +317,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov(dword [ecx + dstoff + 4], eax);*/
     movw(r0, 0);
     mov32(r1, mrb_mktt(MRB_TT_FALSE));
-    movw(r2, dstoff);
-    add(r2, r2, r10);
-    stm(r2, r0, r1);
+    strd(r0, offset(r10, dstoff, r2));
 
     return code;
   }
@@ -734,9 +731,7 @@ do {                                                                     \
     const Xtaak::uint32 coff =  cond * sizeof(mrb_value);
     
     /*mov(eax, ptr [ecx + coff + 4]);*/
-    movw(r1, coff + 4);
-    add(r1, r1, r10);
-    ldr(r0, r1);
+    ldr(r0, offset(r10, coff + 4, r1));
     if (mrb_test(regs[cond])) {
       gen_bool_guard(1, *ppc + 1);
     }
@@ -755,9 +750,7 @@ do {                                                                     \
     const Xtaak::uint32 coff =  cond * sizeof(mrb_value);
     
     /*mov(eax, ptr [ecx + coff + 4]);*/
-    movw(r1, coff + 4);
-    add(r1, r1, r10);
-    ldr(r0, r1);
+    ldr(r0, offset(r10, coff + 4, r1));
     if (!mrb_test(regs[cond])) {
       gen_bool_guard(0, *ppc + 1);
     }
