@@ -58,7 +58,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   void 
-    gen_type_guard(enum mrb_vtype tt, mrb_code *mruby_pc)
+    gen_type_guard(enum mrb_vtype tt, mrb_code *mruby_pc, const Xtaak::Reg &reg)
   {
     /* Input eax for type tag
     if (tt == MRB_TT_FLOAT) {
@@ -70,12 +70,12 @@ class MRBJitCode: public Xtaak::CodeGenerator {
       jz("@f");
     }*/
     /* Input r2 for type tag */
-    adds(r1, r1, 0x100000);
+    adds(reg, reg, 0x100000);
     if (tt == MRB_TT_FLOAT) {
       bcc("@f");
     }
     else {
-      cmp(r1, tt);
+      cmp(reg, tt);
       /*jz("@f");*/
       beq("@f");
     }
@@ -363,12 +363,12 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     movw(r2, reg0off);                                                  \
     add(r2, r2, r10);                                                   \
     ldr(r1, r2 + 4);                                                    \
-    gen_type_guard(r0type, *ppc);                                       \
+    gen_type_guard(r0type, *ppc, r1);                                   \
     /*mov(eax, dword [ecx + reg1off + 4]); /* Get type tag */           \
     movw(r3, reg1off);                                                  \
     add(r3, r3, r10);                                                   \
     ldr(r1, r3 + 4);                                                    \
-    gen_type_guard(r1type, *ppc);                                       \
+    gen_type_guard(r1type, *ppc, r1);                                   \
 \
     if (r0type == MRB_TT_FIXNUM && r1type == MRB_TT_FIXNUM) {           \
       /*mov(eax, dword [ecx + reg0off]);*/                              \
@@ -464,7 +464,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     movw(r2, off);                                                      \
     add(r2, r2, r10);                                                   \
     ldr(r1, r2 + 4); /* Get type tag */                                 \
-    gen_type_guard(atype, *ppc);                                        \
+    gen_type_guard(atype, *ppc, r1);                                    \
 \
     if (atype == MRB_TT_FIXNUM) {                                       \
       /*mov(eax, dword [ecx + off]);*/                                  \
@@ -525,9 +525,7 @@ do {                                                                 \
     /*cmp(eax, dword [ecx + off1]);*/                                \
     /*CMPINST(al);*/                                                 \
     /*mov(ah, 0);*/                                                  \
-    ldr(r2, r4);                                                     \
-    ldr(r3, r5);                                                     \
-    cmp(r2, r3);                                                     \
+    cmp(r0, r2);                                                     \
 } while(0)
 
 #define COMP_GEN_IF(CMPINST)                                         \
@@ -536,9 +534,9 @@ do {                                                                 \
     /*xor(eax, eax);*/                                               \
     /*comisd(xmm0, ptr [ecx + off1]);*/                              \
     /*CMPINST(al);*/                                                 \
-    flds(s0, r4);                                                    \
+    fmsr(s0, r0);                                                    \
     fsitod(d0, s0);                                                  \
-    fldd(d1, r5);                                                    \
+    fmdrr(d1, r2, r3);                                               \
     fcmpd(d0, d1);                                                   \
     fmstat();                                                        \
 } while(0)
@@ -554,8 +552,8 @@ do {                                                                 \
     /*CMPINST(al);*/                                                 \
     /*movsd(xmm1, ptr [esp]);*/                                      \
     /*add(esp, 8);*/                                                 \
-    fldd(d0, r4);                                                    \
-    flds(s2, r5);                                                    \
+    fmdrr(d0, r0, r1);                                               \
+    fmsr(s2, r2);                                                    \
     fsitod(d1, s2);                                                  \
     fcmpd(d0, d1);                                                   \
     fmstat();                                                        \
@@ -567,54 +565,51 @@ do {                                                                 \
     /*xor(eax, eax);*/                                               \
     /*comisd(xmm0, ptr [ecx + off1]);*/                              \
     /*CMPINST(al);*/                                                 \
-    fldd(d0, r4);                                                    \
-    fldd(d1, r5);                                                    \
+    fmdrr(d0, r0, r1);                                               \
+    fmdrr(d1, r2, r3);                                               \
     fcmpd(d0, d1);                                                   \
     fmstat();                                                        \
 } while(0)
     
-#define COMP_GEN(CMPINST)                                            \
-do {                                                                 \
-    int regno = GETARG_A(**ppc);                                     \
-    const Xtaak::uint32 off0 = regno * sizeof(mrb_value);            \
-    const Xtaak::uint32 off1 = off0 + sizeof(mrb_value);             \
-    /*mov(eax, dword [ecx + off0 + 4]); /* Get type tag */           \
-    movw(r4, off0);                                                  \
-    add(r4, r4, r10);                                                \
-    ldr(r1, r4 + 4);                                                 \
-    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno]), *ppc);     \
-    /*mov(eax, dword [ecx + off1 + 4]); /* Get type tag */           \
-    movw(r5, off1);                                                  \
-    add(r5, r5, r10);                                                \
-    ldr(r1, r5 + 4);                                                 \
-    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno + 1]), *ppc); \
-                                                                     \
-    if (mrb_type(regs[regno]) == MRB_TT_FLOAT &&                     \
-             mrb_type(regs[regno + 1]) == MRB_TT_FIXNUM) {           \
-          COMP_GEN_FI(CMPINST);                                      \
-    }                                                                \
-    else if (mrb_type(regs[regno]) == MRB_TT_FIXNUM &&               \
-             mrb_type(regs[regno + 1]) == MRB_TT_FLOAT) {            \
-          COMP_GEN_IF(CMPINST);                                      \
-    }                                                                \
-    else if (mrb_type(regs[regno]) == MRB_TT_FLOAT &&                \
-             mrb_type(regs[regno + 1]) == MRB_TT_FLOAT) {            \
-          COMP_GEN_FF(CMPINST);                                      \
-    }                                                                \
-    else {                                                           \
-          COMP_GEN_II(CMPINST);                                      \
-    }                                                                \
-    /*cwde();*/                                                      \
-    /*add(eax, eax);*/                                               \
-    /*add(eax, 0xfff00001);*/                                        \
-    /*mov(dword [ecx + off0 + 4], eax);*/                            \
-    /*mov(dword [ecx + off0], 1);*/                                  \
-    mov32(r1, mrb_mktt(MRB_TT_FALSE));                               \
-    setCond(CMPINST);                                                \
-    add(r1, r1, MRB_TT_TRUE - MRB_TT_FALSE);                         \
-    setCond(AL);                                                     \
-    movw(r0, 1);                                                     \
-    stm(r4, r0, r1);                                                 \
+#define COMP_GEN(CMPINST)                                                \
+do {                                                                     \
+    int regno = GETARG_A(**ppc);                                         \
+    const Xtaak::uint32 off0 = regno * sizeof(mrb_value);                \
+    const Xtaak::uint32 off1 = off0 + sizeof(mrb_value);                 \
+    /*mov(eax, dword [ecx + off0 + 4]); /* Get type tag */               \
+    movw(r4, off0);                                                      \
+    add(r4, r4, r10);                                                    \
+    ldm(r4, r0, r1, r2, r3);                                             \
+    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno]), *ppc, r1);     \
+    /*mov(eax, dword [ecx + off1 + 4]); /* Get type tag */               \
+    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno + 1]), *ppc, r3); \
+                                                                         \
+    if (mrb_type(regs[regno]) == MRB_TT_FLOAT &&                         \
+             mrb_type(regs[regno + 1]) == MRB_TT_FIXNUM) {               \
+          COMP_GEN_FI(CMPINST);                                          \
+    }                                                                    \
+    else if (mrb_type(regs[regno]) == MRB_TT_FIXNUM &&                   \
+             mrb_type(regs[regno + 1]) == MRB_TT_FLOAT) {                \
+          COMP_GEN_IF(CMPINST);                                          \
+    }                                                                    \
+    else if (mrb_type(regs[regno]) == MRB_TT_FLOAT &&                    \
+             mrb_type(regs[regno + 1]) == MRB_TT_FLOAT) {                \
+          COMP_GEN_FF(CMPINST);                                          \
+    }                                                                    \
+    else {                                                               \
+          COMP_GEN_II(CMPINST);                                          \
+    }                                                                    \
+    /*cwde();*/                                                          \
+    /*add(eax, eax);*/                                                   \
+    /*add(eax, 0xfff00001);*/                                            \
+    /*mov(dword [ecx + off0 + 4], eax);*/                                \
+    /*mov(dword [ecx + off0], 1);*/                                      \
+    mov32(r1, mrb_mktt(MRB_TT_FALSE));                                   \
+    setCond(CMPINST);                                                    \
+    add(r1, r1, MRB_TT_TRUE - MRB_TT_FALSE);                             \
+    setCond(AL);                                                         \
+    movw(r0, 1);                                                         \
+    stm(r4, r0, r1);                                                     \
  } while(0)
   
   const void *
