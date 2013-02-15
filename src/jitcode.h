@@ -572,7 +572,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   {
     int regno = GETARG_A(**ppc);
     const Xtaak::uint32 off0 = regno * sizeof(mrb_value);
-    const Xtaak::uint32 off1 = off0 + sizeof(mrb_value);
+    /*const Xtaak::uint32 off1 = off0 + sizeof(mrb_value); */
     /*mov(eax, dword [ecx + off0 + 4]); / * Get type tag */
     movw(r4, off0);
     add(r4, r4, r10);
