@@ -322,86 +322,112 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     return code;
   }
 
-#define OVERFLOW_CHECK_GEN(AINSTF)                                      \
-    /*jno("@f");*/                                                      \
-    /*sub(esp, 8);*/                                                    \
-    /*movsd(qword [esp], xmm1);*/                                       \
-    /*mov(eax, dword [ecx + reg0off]);*/                                \
-    /*cvtsi2sd(xmm0, eax);*/                                            \
-    /*mov(eax, dword [ecx + reg1off]);*/                                \
-    /*cvtsi2sd(xmm1, eax);*/                                            \
-    /*AINSTF(xmm0, xmm1);*/                                             \
-    /*movsd(dword [ecx + reg0off], xmm0);*/                             \
-    /*movsd(xmm1, ptr [esp]);*/                                         \
-    /*add(esp, 8);*/                                                    \
-    /*L("@@");*/                                                        \
-    bvc("@f");                                                          \
-    fmsr(s0, r0);                                                       \
-    fsitod(d0, s0);                                                     \
-    fmsr(s2, r1);                                                       \
-    fsitod(d1, s2);                                                     \
-    AINSTF(d0, d0, d1);                                                 \
-    fstd(d0, r2);                                                       \
-    L("@@");                                                            \
+  void
+    gen_overflow_check(const char op)
+  {
+    /*jno("@f");
+    sub(esp, 8);
+    movsd(qword [esp], xmm1);
+    mov(eax, dword [ecx + reg0off]);
+    cvtsi2sd(xmm0, eax);
+    mov(eax, dword [ecx + reg1off]);
+    cvtsi2sd(xmm1, eax);
+    AINSTF(xmm0, xmm1);
+    movsd(dword [ecx + reg0off], xmm0);
+    movsd(xmm1, ptr [esp]);
+    add(esp, 8);
+    L("@@");*/
+    bvc("@f");
+    fmsr(s0, r0);
+    fsitod(d0, s0);
+    fmsr(s2, r1);
+    fsitod(d1, s2);
+    switch(op) {
+    case '+':
+      faddd(d0, d0, d1);
+      break;
+    case '-':
+      fsubd(d0, d0, d1);
+      break;
+    }
+    fstd(d0, r2);
+    L("@@");
+  }
 
-#define ARTH_GEN(AINSTI, AINSTF)                                        \
-  do {                                                                  \
-    int reg0pos = GETARG_A(**ppc);                                      \
-    int reg1pos = reg0pos + 1;                                          \
-    const Xtaak::uint32 reg0off = reg0pos * sizeof(mrb_value);          \
-    const Xtaak::uint32 reg1off = reg1pos * sizeof(mrb_value);          \
-    enum mrb_vtype r0type = (enum mrb_vtype) mrb_type(regs[reg0pos]);   \
-    enum mrb_vtype r1type = (enum mrb_vtype) mrb_type(regs[reg1pos]);   \
-\
-    if (r0type != r1type) {                                             \
-      return NULL;                                                      \
-    }                                                                   \
-    /*mov(eax, dword [ecx + reg0off + 4]); /* Get type tag */           \
-    movw(r2, reg0off);                                                  \
-    add(r2, r2, r10);                                                   \
-    ldr(r1, r2 + 4);                                                    \
-    gen_type_guard(r0type, *ppc, r1);                                   \
-    /*mov(eax, dword [ecx + reg1off + 4]); /* Get type tag */           \
-    movw(r3, reg1off);                                                  \
-    add(r3, r3, r10);                                                   \
-    ldr(r1, r3 + 4);                                                    \
-    gen_type_guard(r1type, *ppc, r1);                                   \
-\
-    if (r0type == MRB_TT_FIXNUM && r1type == MRB_TT_FIXNUM) {           \
-      /*mov(eax, dword [ecx + reg0off]);*/                              \
-      /*AINSTI(eax, dword [ecx + reg1off]);*/                           \
-      /*mov(dword [ecx + reg0off], eax);*/                              \
-      ldr(r0, r2);                                                      \
-      ldr(r1, r3);                                                      \
-      AINSTI(r3, r0, r1);                                               \
-      str(r2, r3);                                                      \
-      OVERFLOW_CHECK_GEN(AINSTF);                                       \
-    }                                                                   \
-    else if (r0type == MRB_TT_FLOAT && r1type == MRB_TT_FLOAT) {        \
-      /*movsd(xmm0, ptr [ecx + reg0off]);*/                             \
-      /*AINSTF(xmm0, ptr [ecx + reg1off]);*/                            \
-      /*movsd(ptr [ecx + reg0off], xmm0);*/                             \
-      fldd(d0, r2);                                                     \
-      fldd(d1, r3);                                                     \
-      AINSTF(d0, d0, d1);                                               \
-      fstd(d0, r2);                                                     \
-    }                                                                   \
-    else {                                                              \
-      /*mov(dword [ebx], (Xbyak::uint32)*ppc);*/                        \
-      /*ret();*/                                                        \
-      ldr(r0, "@f");                                                    \
-      str(r0, r9);                                                      \
-      mov(pc, lr);                                                      \
-      L("@@");                                                          \
-      dd((Xtaak::uint32)*ppc);                                          \
-    }                                                                   \
-} while(0)
+  bool
+    gen_arth(const char op, mrb_code **ppc, mrb_value *regs)
+  {
+    int reg0pos = GETARG_A(**ppc);
+    int reg1pos = reg0pos + 1;
+    const Xtaak::uint32 reg0off = reg0pos * sizeof(mrb_value);
+    const Xtaak::uint32 reg1off = reg1pos * sizeof(mrb_value);
+    enum mrb_vtype r0type = (enum mrb_vtype) mrb_type(regs[reg0pos]);
+    enum mrb_vtype r1type = (enum mrb_vtype) mrb_type(regs[reg1pos]);
+
+    if (r0type != r1type) {
+      return false;
+    }
+    /*mov(eax, dword [ecx + reg0off + 4]); / * Get type tag */
+    movw(r2, reg0off);
+    add(r2, r2, r10);
+    ldr(r1, r2 + 4);
+    gen_type_guard(r0type, *ppc, r1);
+    /*mov(eax, dword [ecx + reg1off + 4]); / * Get type tag */
+    movw(r3, reg1off);
+    add(r3, r3, r10);
+    ldr(r1, r3 + 4);
+    gen_type_guard(r1type, *ppc, r1);
+
+    if (r0type == MRB_TT_FIXNUM && r1type == MRB_TT_FIXNUM) {
+      /*mov(eax, dword [ecx + reg0off]);*/
+      /*AINSTI(eax, dword [ecx + reg1off]);*/
+      /*mov(dword [ecx + reg0off], eax);*/
+      ldr(r0, r2);
+      ldr(r1, r3);
+      switch(op) {
+      case '+':
+        adds(r3, r0, r1);
+        break;
+      case '-':
+        subs(r3, r0, r1);
+        break;
+      }
+      str(r2, r3);
+      gen_overflow_check(op);
+    }
+    else if (r0type == MRB_TT_FLOAT && r1type == MRB_TT_FLOAT) {
+      /*movsd(xmm0, ptr [ecx + reg0off]);*/
+      /*AINSTF(xmm0, ptr [ecx + reg1off]);*/
+      /*movsd(ptr [ecx + reg0off], xmm0);*/
+      fldd(d0, r2);
+      fldd(d1, r3);
+      switch(op) {
+      case '+':
+        faddd(d0, d0, d1);
+        break;
+      case '-':
+        fsubd(d0, d0, d1);
+        break;
+      }
+      fstd(d0, r2);
+    }
+    else {
+      /*mov(dword [ebx], (Xbyak::uint32)*ppc);*/
+      /*ret();*/
+      ldr(r0, "@f");
+      str(r0, r9);
+      mov(pc, lr);
+      L("@@");
+      dd((Xtaak::uint32)*ppc);
+    }
+    return true;
+  }
 
   const void *
     emit_add(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    ARTH_GEN(adds, faddd);
+    if (!gen_arth('+', ppc, regs)) { return NULL; }
     return code;
   }
 
@@ -409,7 +435,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_sub(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    ARTH_GEN(subs, fsubd);
+    if (!gen_arth('-', ppc, regs)) { return NULL; }
     return code;
   }
 
@@ -428,83 +454,108 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     return code;
   }
 
-#define OVERFLOW_CHECK_I_GEN(AINSTF)                                    \
-    /*jno("@f");*/                                                      \
-    /*sub(esp, 8);*/                                                    \
-    /*movsd(qword [esp], xmm1);*/                                       \
-    /*mov(eax, dword [ecx + off]);*/                                    \
-    /*cvtsi2sd(xmm0, eax);*/                                            \
-    /*mov(eax, y);*/                                                    \
-    /*cvtsi2sd(xmm1, eax);*/                                            \
-    /*AINSTF(xmm0, xmm1);*/                                             \
-    /*movsd(dword [ecx + off], xmm0);*/                                 \
-    /*movsd(xmm1, ptr [esp]);*/                                         \
-    /*add(esp, 8);*/                                                    \
-    /*L("@@");*/                                                        \
-    bvc("@f");                                                          \
-    fmsr(s0, r0);                                                       \
-    fsitod(d0, s0);                                                     \
-    movw(r0, y);                                                        \
-    fmsr(s2, r0);                                                       \
-    fsitod(d1, s2);                                                     \
-    AINSTF(d0, d0, d1);                                                 \
-    fstd(d0, r2);                                                       \
-    L("@@");                                                            \
+  void
+    gen_overflow_check_i(const char op, const Xtaak::uint32 y)
+  {
+    /*jno("@f");
+    sub(esp, 8);
+    movsd(qword [esp], xmm1);
+    mov(eax, dword [ecx + off]);
+    cvtsi2sd(xmm0, eax);
+    mov(eax, y);
+    cvtsi2sd(xmm1, eax);
+    AINSTF(xmm0, xmm1);
+    movsd(dword [ecx + off], xmm0);
+    movsd(xmm1, ptr [esp]);
+    add(esp, 8);
+    L("@@");*/
+    bvc("@f");
+    fmsr(s0, r0);
+    fsitod(d0, s0);
+    movw(r0, y);
+    fmsr(s2, r0);
+    fsitod(d1, s2);
+    switch(op) {
+    case '+':
+      faddd(d0, d0, d1);
+      break;
+    case '-':
+      fsubd(d0, d0, d1);
+      break;
+    }
+    fstd(d0, r2);
+    L("@@");
+  }
 
-#define ARTH_I_GEN(AINSTI, AINSTF)                                      \
-  do {                                                                  \
-    const Xtaak::uint32 y = GETARG_C(**ppc);                            \
-    const Xtaak::uint32 off = GETARG_A(**ppc) * sizeof(mrb_value);      \
-    int regno = GETARG_A(**ppc);                                        \
-    enum mrb_vtype atype = (enum mrb_vtype) mrb_type(regs[regno]);      \
-    /*mov(eax, dword [ecx + off + 4]); /* Get type tag */               \
-    movw(r2, off);                                                      \
-    add(r2, r2, r10);                                                   \
-    ldr(r1, r2 + 4); /* Get type tag */                                 \
-    gen_type_guard(atype, *ppc, r1);                                    \
-\
-    if (atype == MRB_TT_FIXNUM) {                                       \
-      /*mov(eax, dword [ecx + off]);*/                                  \
-      /*AINSTI(eax, y);*/                                               \
-      /*mov(dword [ecx + off], eax);*/                                  \
-      ldr(r0, r2);                                                      \
-      AINSTI(r1, r0, y);                                                \
-      str(r1, r2);                                                      \
-      OVERFLOW_CHECK_I_GEN(AINSTF);                                     \
-    }                                                                   \
-    else if (atype == MRB_TT_FLOAT) {                                   \
-      /*sub(esp, 8);*/                                                  \
-      /*movsd(qword [esp], xmm1);*/                                     \
-      /*movsd(xmm0, ptr [ecx + off]);*/                                 \
-      /*mov(eax, y);*/                                                  \
-      /*cvtsi2sd(xmm1, eax);*/                                          \
-      /*AINSTF(xmm0, xmm1);*/                                           \
-      /*movsd(ptr [ecx + off], xmm0);*/                                 \
-      /*movsd(xmm1, ptr [esp]);*/                                       \
-      /*add(esp, 8);*/                                                  \
-      fldd(d0, r2);                                                     \
-      movw(r0, y);                                                      \
-      fmsr(s2, r0);                                                     \
-      fsitod(d1, s2);                                                   \
-      AINSTF(d0, d0, d1);                                               \
-      fstd(d0, r2);                                                     \
-    }                                                                   \
-    else {                                                              \
-      /*mov(dword [ebx], (Xbyak::uint32)*ppc);*/                        \
-      /*ret();*/                                                        \
-      ldr(r0, "@f");                                                    \
-      str(r0, r9);                                                      \
-      mov(pc, lr);                                                      \
-      L("@@");                                                          \
-      dd((Xtaak::uint32)*ppc);                                          \
-    }                                                                   \
-} while(0)
-    
+  void
+    gen_arth_i(const char op, mrb_code **ppc, mrb_value *regs)
+  {
+    const Xtaak::uint32 y = GETARG_C(**ppc);
+    const Xtaak::uint32 off = GETARG_A(**ppc) * sizeof(mrb_value);
+    int regno = GETARG_A(**ppc);
+    enum mrb_vtype atype = (enum mrb_vtype) mrb_type(regs[regno]);
+    /*mov(eax, dword [ecx + off + 4]); / * Get type tag */
+    movw(r2, off);
+    add(r2, r2, r10);
+    ldr(r1, r2 + 4); /* Get type tag */
+    gen_type_guard(atype, *ppc, r1);
+
+    if (atype == MRB_TT_FIXNUM) {
+      /*mov(eax, dword [ecx + off]);
+      AINSTI(eax, y);
+      mov(dword [ecx + off], eax);*/
+      ldr(r0, r2);
+      switch(op) {
+      case '+':
+        adds(r1, r0, y);
+        break;
+      case '-':
+        subs(r1, r0, y);
+        break;
+      }
+      str(r1, r2);
+      gen_overflow_check_i(op, y);
+    }
+    else if (atype == MRB_TT_FLOAT) {
+      /*sub(esp, 8);
+      movsd(qword [esp], xmm1);
+      movsd(xmm0, ptr [ecx + off]);
+      mov(eax, y);
+      cvtsi2sd(xmm1, eax);
+      AINSTF(xmm0, xmm1);
+      movsd(ptr [ecx + off], xmm0);
+      movsd(xmm1, ptr [esp]);
+      add(esp, 8);*/
+      fldd(d0, r2);
+      movw(r0, y);
+      fmsr(s2, r0);
+      fsitod(d1, s2);
+      switch(op) {
+      case '+':
+        faddd(d0, d0, d1);
+        break;
+      case '-':
+        fsubd(d0, d0, d1);
+        break;
+      }
+      fstd(d0, r2);
+    }
+    else {
+      /*mov(dword [ebx], (Xbyak::uint32)*ppc);
+      ret();*/
+      ldr(r0, "@f");
+      str(r0, r9);
+      mov(pc, lr);
+      L("@@");
+      dd((Xtaak::uint32)*ppc);
+    }
+  }
+
   const void *
     emit_addi(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    ARTH_I_GEN(adds, faddd);
+    gen_arth_i('+', ppc, regs);
     return code;
   }
 
@@ -512,108 +563,89 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_subi(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    ARTH_I_GEN(subs, fsubd);
+    gen_arth_i('-', ppc, regs);
     return code;
   }
 
-#define COMP_GEN_II(CMPINST)                                         \
-do {                                                                 \
-    /*mov(eax, dword [ecx + off0]);*/                                \
-    /*cmp(eax, dword [ecx + off1]);*/                                \
-    /*CMPINST(al);*/                                                 \
-    /*mov(ah, 0);*/                                                  \
-    cmp(r0, r2);                                                     \
-} while(0)
+  void
+    gen_comp(Cond cond, mrb_code **ppc, mrb_value *regs)
+  {
+    int regno = GETARG_A(**ppc);
+    const Xtaak::uint32 off0 = regno * sizeof(mrb_value);
+    const Xtaak::uint32 off1 = off0 + sizeof(mrb_value);
+    /*mov(eax, dword [ecx + off0 + 4]); / * Get type tag */
+    movw(r4, off0);
+    add(r4, r4, r10);
+    ldm(r4, r0, r1, r2, r3);
+    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno]), *ppc, r1);
+    /*mov(eax, dword [ecx + off1 + 4]); / * Get type tag */
+    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno + 1]), *ppc, r3);
 
-#define COMP_GEN_IF(CMPINST)                                         \
-do {                                                                 \
-    /*cvtsi2sd(xmm0, ptr [ecx + off0]);*/                            \
-    /*xor(eax, eax);*/                                               \
-    /*comisd(xmm0, ptr [ecx + off1]);*/                              \
-    /*CMPINST(al);*/                                                 \
-    fmsr(s0, r0);                                                    \
-    fsitod(d0, s0);                                                  \
-    fmdrr(d1, r2, r3);                                               \
-    fcmpd(d0, d1);                                                   \
-    fmstat();                                                        \
-} while(0)
-
-#define COMP_GEN_FI(CMPINST)                                         \
-do {                                                                 \
-    /*sub(esp, 8);*/                                                 \
-    /*movsd(qword [esp], xmm1);*/                                    \
-    /*movsd(xmm0, ptr [ecx + off0]);*/                               \
-    /*cvtsi2sd(xmm1, ptr [ecx + off1]);*/                            \
-    /*xor(eax, eax);*/                                               \
-    /*comisd(xmm0, xmm1);*/                                          \
-    /*CMPINST(al);*/                                                 \
-    /*movsd(xmm1, ptr [esp]);*/                                      \
-    /*add(esp, 8);*/                                                 \
-    fmdrr(d0, r0, r1);                                               \
-    fmsr(s2, r2);                                                    \
-    fsitod(d1, s2);                                                  \
-    fcmpd(d0, d1);                                                   \
-    fmstat();                                                        \
-} while(0)
-
-#define COMP_GEN_FF(CMPINST)                                         \
-do {                                                                 \
-    /*movsd(xmm0, dword [ecx + off0]);*/                             \
-    /*xor(eax, eax);*/                                               \
-    /*comisd(xmm0, ptr [ecx + off1]);*/                              \
-    /*CMPINST(al);*/                                                 \
-    fmdrr(d0, r0, r1);                                               \
-    fmdrr(d1, r2, r3);                                               \
-    fcmpd(d0, d1);                                                   \
-    fmstat();                                                        \
-} while(0)
-    
-#define COMP_GEN(CMPINST)                                                \
-do {                                                                     \
-    int regno = GETARG_A(**ppc);                                         \
-    const Xtaak::uint32 off0 = regno * sizeof(mrb_value);                \
-    const Xtaak::uint32 off1 = off0 + sizeof(mrb_value);                 \
-    /*mov(eax, dword [ecx + off0 + 4]); /* Get type tag */               \
-    movw(r4, off0);                                                      \
-    add(r4, r4, r10);                                                    \
-    ldm(r4, r0, r1, r2, r3);                                             \
-    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno]), *ppc, r1);     \
-    /*mov(eax, dword [ecx + off1 + 4]); /* Get type tag */               \
-    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno + 1]), *ppc, r3); \
-                                                                         \
-    if (mrb_type(regs[regno]) == MRB_TT_FLOAT &&                         \
-             mrb_type(regs[regno + 1]) == MRB_TT_FIXNUM) {               \
-          COMP_GEN_FI(CMPINST);                                          \
-    }                                                                    \
-    else if (mrb_type(regs[regno]) == MRB_TT_FIXNUM &&                   \
-             mrb_type(regs[regno + 1]) == MRB_TT_FLOAT) {                \
-          COMP_GEN_IF(CMPINST);                                          \
-    }                                                                    \
-    else if (mrb_type(regs[regno]) == MRB_TT_FLOAT &&                    \
-             mrb_type(regs[regno + 1]) == MRB_TT_FLOAT) {                \
-          COMP_GEN_FF(CMPINST);                                          \
-    }                                                                    \
-    else {                                                               \
-          COMP_GEN_II(CMPINST);                                          \
-    }                                                                    \
-    /*cwde();*/                                                          \
-    /*add(eax, eax);*/                                                   \
-    /*add(eax, 0xfff00001);*/                                            \
-    /*mov(dword [ecx + off0 + 4], eax);*/                                \
-    /*mov(dword [ecx + off0], 1);*/                                      \
-    mov32(r1, mrb_mktt(MRB_TT_FALSE));                                   \
-    setCond(CMPINST);                                                    \
-    add(r1, r1, MRB_TT_TRUE - MRB_TT_FALSE);                             \
-    setCond(AL);                                                         \
-    movw(r0, 1);                                                         \
-    stm(r4, r0, r1);                                                     \
- } while(0)
+    if (mrb_type(regs[regno]) == MRB_TT_FLOAT &&
+        mrb_type(regs[regno + 1]) == MRB_TT_FIXNUM) {
+      /*sub(esp, 8);
+      movsd(qword [esp], xmm1);
+      movsd(xmm0, ptr [ecx + off0]);
+      cvtsi2sd(xmm1, ptr [ecx + off1]);
+      xor(eax, eax);
+      comisd(xmm0, xmm1);
+      CMPINST(al);
+      movsd(xmm1, ptr [esp]);
+      add(esp, 8);*/
+      fmdrr(d0, r0, r1);
+      fmsr(s2, r2);
+      fsitod(d1, s2);
+      fcmpd(d0, d1);
+      fmstat();
+    }
+    else if (mrb_type(regs[regno]) == MRB_TT_FIXNUM &&
+             mrb_type(regs[regno + 1]) == MRB_TT_FLOAT) {
+      /*cvtsi2sd(xmm0, ptr [ecx + off0]);
+      xor(eax, eax);
+      comisd(xmm0, ptr [ecx + off1]);
+      CMPINST(al);*/
+      fmsr(s0, r0);
+      fsitod(d0, s0);
+      fmdrr(d1, r2, r3);
+      fcmpd(d0, d1);
+      fmstat();
+    }
+    else if (mrb_type(regs[regno]) == MRB_TT_FLOAT &&
+             mrb_type(regs[regno + 1]) == MRB_TT_FLOAT) {
+      /*movsd(xmm0, dword [ecx + off0]);
+      xor(eax, eax);
+      comisd(xmm0, ptr [ecx + off1]);
+      CMPINST(al);*/
+      fmdrr(d0, r0, r1);
+      fmdrr(d1, r2, r3);
+      fcmpd(d0, d1);
+      fmstat();
+    }
+    else {
+      /*mov(eax, dword [ecx + off0]);
+      cmp(eax, dword [ecx + off1]);
+      CMPINST(al);
+      mov(ah, 0);*/
+      cmp(r0, r2);
+    }
+    /*cwde();
+    add(eax, eax);
+    add(eax, 0xfff00001);
+    mov(dword [ecx + off0 + 4], eax);
+    mov(dword [ecx + off0], 1);*/
+    mov32(r1, mrb_mktt(MRB_TT_FALSE));
+    setCond(cond);
+    add(r1, r1, MRB_TT_TRUE - MRB_TT_FALSE);
+    setCond(AL);
+    movw(r0, 1);
+    stm(r4, r0, r1);
+ }
   
   const void *
     emit_eq(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    COMP_GEN(EQ);
+    gen_comp(EQ, ppc, regs);
 
     return code;
   }
@@ -622,7 +654,7 @@ do {                                                                     \
     emit_lt(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    COMP_GEN(LT);
+    gen_comp(LT, ppc, regs);
 
     return code;
   }
@@ -631,7 +663,7 @@ do {                                                                     \
     emit_le(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    COMP_GEN(LE);
+    gen_comp(LE, ppc, regs);
 
     return code;
   }
@@ -640,7 +672,7 @@ do {                                                                     \
     emit_gt(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    COMP_GEN(GT);
+    gen_comp(GT, ppc, regs);
 
     return code;
   }
@@ -649,7 +681,7 @@ do {                                                                     \
     emit_ge(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    COMP_GEN(GE);
+    gen_comp(GE, ppc, regs);
 
     return code;
   }
