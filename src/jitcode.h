@@ -338,19 +338,19 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     add(esp, 8);
     L("@@");*/
     bvc("@f");
-    fmsr(s0, r0);
-    fsitod(d0, s0);
-    fmsr(s2, r1);
-    fsitod(d1, s2);
+    vmov(s0, r0);
+    vcvt.f64.s32(d0, s0);
+    vmov(s2, r1);
+    vcvt.f64.s32(d1, s2);
     switch(op) {
     case '+':
-      faddd(d0, d0, d1);
+      vadd.f64(d0, d0, d1);
       break;
     case '-':
-      fsubd(d0, d0, d1);
+      vsub.f64(d0, d0, d1);
       break;
     }
-    fstd(d0, r2);
+    vstr(d0, r2);
     L("@@");
   }
 
@@ -399,17 +399,17 @@ class MRBJitCode: public Xtaak::CodeGenerator {
       /*movsd(xmm0, ptr [ecx + reg0off]);*/
       /*AINSTF(xmm0, ptr [ecx + reg1off]);*/
       /*movsd(ptr [ecx + reg0off], xmm0);*/
-      fldd(d0, r2);
-      fldd(d1, r3);
+      vldr(d0, r2);
+      vldr(d1, r3);
       switch(op) {
       case '+':
-        faddd(d0, d0, d1);
+        vadd.f64(d0, d0, d1);
         break;
       case '-':
-        fsubd(d0, d0, d1);
+        vsub.f64(d0, d0, d1);
         break;
       }
-      fstd(d0, r2);
+      vstr(d0, r2);
     }
     else {
       /*mov(dword [ebx], (Xbyak::uint32)*ppc);*/
@@ -470,20 +470,20 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     add(esp, 8);
     L("@@");*/
     bvc("@f");
-    fmsr(s0, r0);
-    fsitod(d0, s0);
+    vmov(s0, r0);
+    vcvt.f64.s32(d0, s0);
     movw(r0, y);
-    fmsr(s2, r0);
-    fsitod(d1, s2);
+    vmov(s2, r0);
+    vcvt.f64.s32(d1, s2);
     switch(op) {
     case '+':
-      faddd(d0, d0, d1);
+      vadd.f64(d0, d0, d1);
       break;
     case '-':
-      fsubd(d0, d0, d1);
+      vsub.f64(d0, d0, d1);
       break;
     }
-    fstd(d0, r2);
+    vstr(d0, r2);
     L("@@");
   }
 
@@ -526,19 +526,19 @@ class MRBJitCode: public Xtaak::CodeGenerator {
       movsd(ptr [ecx + off], xmm0);
       movsd(xmm1, ptr [esp]);
       add(esp, 8);*/
-      fldd(d0, r2);
+      vldr(d0, r2);
       movw(r0, y);
-      fmsr(s2, r0);
-      fsitod(d1, s2);
+      vmov(s2, r0);
+      vcvt.f64.s32(d1, s2);
       switch(op) {
       case '+':
-        faddd(d0, d0, d1);
+        vadd.f64(d0, d0, d1);
         break;
       case '-':
-        fsubd(d0, d0, d1);
+        vsub.f64(d0, d0, d1);
         break;
       }
-      fstd(d0, r2);
+      vstr(d0, r2);
     }
     else {
       /*mov(dword [ebx], (Xbyak::uint32)*ppc);
@@ -592,11 +592,11 @@ class MRBJitCode: public Xtaak::CodeGenerator {
       CMPINST(al);
       movsd(xmm1, ptr [esp]);
       add(esp, 8);*/
-      fmdrr(d0, r0, r1);
-      fmsr(s2, r2);
-      fsitod(d1, s2);
-      fcmpd(d0, d1);
-      fmstat();
+      vmov(d0, r0, r1);
+      vmov(s2, r2);
+      vcvt.f64.s32(d1, s2);
+      vcmp.f64(d0, d1);
+      vmrs(APSR_nzcv, fpscr);
     }
     else if (mrb_type(regs[regno]) == MRB_TT_FIXNUM &&
              mrb_type(regs[regno + 1]) == MRB_TT_FLOAT) {
@@ -604,11 +604,11 @@ class MRBJitCode: public Xtaak::CodeGenerator {
       xor(eax, eax);
       comisd(xmm0, ptr [ecx + off1]);
       CMPINST(al);*/
-      fmsr(s0, r0);
-      fsitod(d0, s0);
-      fmdrr(d1, r2, r3);
-      fcmpd(d0, d1);
-      fmstat();
+      vmov(s0, r0);
+      vcvt.f64.s32(d0, s0);
+      vmov(d1, r2, r3);
+      vcmp.f64(d0, d1);
+      vmrs(APSR_nzcv, fpscr);
     }
     else if (mrb_type(regs[regno]) == MRB_TT_FLOAT &&
              mrb_type(regs[regno + 1]) == MRB_TT_FLOAT) {
@@ -616,10 +616,10 @@ class MRBJitCode: public Xtaak::CodeGenerator {
       xor(eax, eax);
       comisd(xmm0, ptr [ecx + off1]);
       CMPINST(al);*/
-      fmdrr(d0, r0, r1);
-      fmdrr(d1, r2, r3);
-      fcmpd(d0, d1);
-      fmstat();
+      vmov(d0, r0, r1);
+      vmov(d1, r2, r3);
+      vcmp.f64(d0, d1);
+      vmrs(APSR_nzcv, fpscr);
     }
     else {
       /*mov(eax, dword [ecx + off0]);
