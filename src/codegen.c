@@ -424,6 +424,17 @@ new_lit(codegen_scope *s, mrb_value val)
 }
 
 static inline int
+new_lit2(codegen_scope *s, mrb_value val)
+{
+  if (s->irep->plen == s->pcapa) {
+    s->pcapa *= 2;
+    s->irep->pool = (mrb_value *)codegen_realloc(s, s->irep->pool, sizeof(mrb_value)*s->pcapa);
+  }
+  s->irep->pool[s->irep->plen] = val;
+  return s->irep->plen++;
+}
+
+static inline int
 new_msym(codegen_scope *s, mrb_sym sym)
 {
   int i, len;
@@ -460,6 +471,18 @@ new_sym(codegen_scope *s, mrb_sym sym)
   }
   s->irep->syms[s->irep->slen] = sym;
   return s->irep->slen++;
+}
+
+
+static void
+genop_send(codegen_scope *s, mrb_code i)
+{
+  int off;
+
+  genop(s, i);
+  off = new_lit2(s, mrb_fixnum_value(1));
+  new_lit2(s, mrb_fixnum_value(1));
+  genop(s, MKOP_Bx(OP_NOP, off));
 }
 
 static int
@@ -531,7 +554,7 @@ for_body(codegen_scope *s, node *tree)
   genop(s, MKOP_Abc(OP_LAMBDA, cursp(), idx - base, OP_L_BLOCK));
   pop();
   idx = new_msym(s, mrb_intern(s->mrb, "each"));
-  genop(s, MKOP_ABC(OP_SENDB, cursp(), idx, 0));
+  genop_send(s, MKOP_ABC(OP_SENDB, cursp(), idx, 0));
 }
 
 static int
@@ -764,39 +787,39 @@ gen_call(codegen_scope *s, node *tree, mrb_sym name, int sp, int val)
     const char *name = mrb_sym2name_len(s->mrb, sym, &len);
 
     if (!noop && len == 1 && name[0] == '+')  {
-      genop_peep(s, MKOP_ABC(OP_ADD, cursp(), idx, n), val);
+      genop_send(s, MKOP_ABC(OP_ADD, cursp(), idx, n));
     }
     else if (!noop && len == 1 && name[0] == '-')  {
-      genop_peep(s, MKOP_ABC(OP_SUB, cursp(), idx, n), val);
+      genop_send(s, MKOP_ABC(OP_SUB, cursp(), idx, n));
     }
     else if (!noop && len == 1 && name[0] == '*')  {
-      genop(s, MKOP_ABC(OP_MUL, cursp(), idx, n));
+      genop_send(s, MKOP_ABC(OP_MUL, cursp(), idx, n));
     }
     else if (!noop && len == 1 && name[0] == '/')  {
-      genop(s, MKOP_ABC(OP_DIV, cursp(), idx, n));
+      genop_send(s, MKOP_ABC(OP_DIV, cursp(), idx, n));
     }
     else if (!noop && len == 1 && name[0] == '<')  {
-      genop(s, MKOP_ABC(OP_LT, cursp(), idx, n));
+      genop_send(s, MKOP_ABC(OP_LT, cursp(), idx, n));
     }
     else if (!noop && len == 2 && name[0] == '<' && name[1] == '=')  {
-      genop(s, MKOP_ABC(OP_LE, cursp(), idx, n));
+      genop_send(s, MKOP_ABC(OP_LE, cursp(), idx, n));
     }
     else if (!noop && len == 1 && name[0] == '>')  {
-      genop(s, MKOP_ABC(OP_GT, cursp(), idx, n));
+      genop_send(s, MKOP_ABC(OP_GT, cursp(), idx, n));
     }
     else if (!noop && len == 2 && name[0] == '>' && name[1] == '=')  {
-      genop(s, MKOP_ABC(OP_GE, cursp(), idx, n));
+      genop_send(s, MKOP_ABC(OP_GE, cursp(), idx, n));
     }
     else if (!noop && len == 2 && name[0] == '=' && name[1] == '=')  {
-      genop(s, MKOP_ABC(OP_EQ, cursp(), idx, n));
+      genop_send(s, MKOP_ABC(OP_EQ, cursp(), idx, n));
     }
     else {
       if (sendv) n = CALL_MAXARGS;
       if (blk > 0) {		   /* no block */
-	genop(s, MKOP_ABC(OP_SEND, cursp(), idx, n));
+	genop_send(s, MKOP_ABC(OP_SEND, cursp(), idx, n));
       }
       else {
-	genop(s, MKOP_ABC(OP_SENDB, cursp(), idx, n));
+	genop_send(s, MKOP_ABC(OP_SENDB, cursp(), idx, n));
       }
     }
   }
@@ -891,7 +914,7 @@ gen_vmassignment(codegen_scope *s, node *tree, int rhs, int val)
     t = tree->car;
     n = 0;
     while (t) {
-      genop(s, MKOP_ABC(OP_AREF, cursp(), rhs, n));
+      genop_send(s, MKOP_ABC(OP_AREF, cursp(), rhs, n));
       gen_assignment(s, t->car, cursp(), NOVAL);
       n++;
       t = t->cdr;
@@ -911,7 +934,7 @@ gen_vmassignment(codegen_scope *s, node *tree, int rhs, int val)
       push();
     }
     pop();
-    genop(s, MKOP_ABC(OP_APOST, cursp(), n, post));
+    genop_send(s, MKOP_ABC(OP_APOST, cursp(), n, post));
     n = 1;
     if (t->car) {               /* rest */
       gen_assignment(s, t->car, cursp(), NOVAL);
@@ -1024,7 +1047,7 @@ codegen(codegen_scope *s, node *tree, int val)
             }
             genop(s, MKOP_AB(OP_MOVE, cursp(), exc));
             pop();
-            genop(s, MKOP_ABC(OP_SEND, cursp(), new_msym(s, mrb_intern(s->mrb, "===")), 1));
+            genop_send(s, MKOP_ABC(OP_SEND, cursp(), new_msym(s, mrb_intern(s->mrb, "===")), 1));
             tmp = new_label(s);
             genop(s, MKOP_AsBx(OP_JMPIF, cursp(), pos2));
             pos2 = tmp;
@@ -1224,7 +1247,7 @@ codegen(codegen_scope *s, node *tree, int val)
           if (head) {
             genop(s, MKOP_AB(OP_MOVE, cursp(), head));
             pop();
-            genop(s, MKOP_ABC(OP_SEND, cursp(), new_msym(s, mrb_intern(s->mrb, "===")), 1));
+            genop_send(s, MKOP_ABC(OP_SEND, cursp(), new_msym(s, mrb_intern(s->mrb, "===")), 1));
           }
           else {
 	    pop();
@@ -1269,7 +1292,7 @@ codegen(codegen_scope *s, node *tree, int val)
     codegen(s, tree->cdr, val);
     if (val) {
       pop(); pop();
-      genop(s, MKOP_ABC(OP_RANGE, cursp(), cursp(), 0));
+      genop_send(s, MKOP_ABC(OP_RANGE, cursp(), cursp(), 0));
       push();
     }
     break;
@@ -1279,7 +1302,7 @@ codegen(codegen_scope *s, node *tree, int val)
     codegen(s, tree->cdr, val);
     if (val) {
       pop(); pop();
-      genop(s, MKOP_ABC(OP_RANGE, cursp(), cursp(), 1));
+      genop_send(s, MKOP_ABC(OP_RANGE, cursp(), cursp(), 1));
       push();
     }
     break;
@@ -1313,7 +1336,7 @@ codegen(codegen_scope *s, node *tree, int val)
       if (n >= 0) {
         if (val) {
 	  pop_n(n);
-          genop(s, MKOP_ABC(OP_ARRAY, cursp(), cursp(), n));
+          genop_send(s, MKOP_ABC(OP_ARRAY, cursp(), cursp(), n));
           push();
         }
       }
@@ -1335,7 +1358,7 @@ codegen(codegen_scope *s, node *tree, int val)
       }
       if (val) {
 	pop_n(len*2);
-        genop(s, MKOP_ABC(OP_HASH, cursp(), cursp(), len));
+        genop_send(s, MKOP_ABC(OP_HASH, cursp(), cursp(), len));
         push();
       }
     }
@@ -1387,7 +1410,7 @@ codegen(codegen_scope *s, node *tree, int val)
           if (t->car) {         /* rest (len - pre - post) */
             int rn = len - post - n;
 
-            genop(s, MKOP_ABC(OP_ARRAY, cursp(), rhs+n, rn));
+            genop_send(s, MKOP_ABC(OP_ARRAY, cursp(), rhs+n, rn));
             gen_assignment(s, t->car, cursp(), NOVAL);
             n += rn;
           }
@@ -1402,7 +1425,7 @@ codegen(codegen_scope *s, node *tree, int val)
         }
         pop_n(len);
         if (val) {
-          genop(s, MKOP_ABC(OP_ARRAY, rhs, rhs, len));
+          genop_send(s, MKOP_ABC(OP_ARRAY, rhs, rhs, len));
           push();
         }
       }
@@ -1442,25 +1465,25 @@ codegen(codegen_scope *s, node *tree, int val)
 
       idx = new_msym(s, sym);
       if (len == 1 && name[0] == '+')  {
-        genop_peep(s, MKOP_ABC(OP_ADD, cursp(), idx, 1), val);
+        genop_send(s, MKOP_ABC(OP_ADD, cursp(), idx, 1));
       }
       else if (len == 1 && name[0] == '-')  {
-        genop_peep(s, MKOP_ABC(OP_SUB, cursp(), idx, 1), val);
+        genop_send(s, MKOP_ABC(OP_SUB, cursp(), idx, 1));
       }
       else if (len == 1 && name[0] == '<')  {
-        genop(s, MKOP_ABC(OP_LT, cursp(), idx, 1));
+        genop_send(s, MKOP_ABC(OP_LT, cursp(), idx, 1));
       }
       else if (len == 2 && name[0] == '<' && name[1] == '=')  {
-        genop(s, MKOP_ABC(OP_LE, cursp(), idx, 1));
+        genop_send(s, MKOP_ABC(OP_LE, cursp(), idx, 1));
       }
       else if (len == 1 && name[0] == '>')  {
-        genop(s, MKOP_ABC(OP_GT, cursp(), idx, 1));
+        genop_send(s, MKOP_ABC(OP_GT, cursp(), idx, 1));
       }
       else if (len == 2 && name[0] == '>' && name[1] == '=')  {
-        genop(s, MKOP_ABC(OP_GE, cursp(), idx, 1));
+        genop_send(s, MKOP_ABC(OP_GE, cursp(), idx, 1));
       }
       else {
-	genop(s, MKOP_ABC(OP_SEND, cursp(), idx, 1));
+	genop_send(s, MKOP_ABC(OP_SEND, cursp(), idx, 1));
       }
     }
     gen_assignment(s, tree->car, cursp(), val);
@@ -1554,7 +1577,7 @@ codegen(codegen_scope *s, node *tree, int val)
       }
       pop_n(n+1);
       if (sendv) n = CALL_MAXARGS;
-      genop(s, MKOP_ABC(OP_SEND, cursp(), new_msym(s, mrb_intern(s->mrb, "call")), n));
+      genop_send(s, MKOP_ABC(OP_SEND, cursp(), new_msym(s, mrb_intern(s->mrb, "call")), n));
       if (val) push();
     }
     break;
@@ -1824,7 +1847,7 @@ codegen(codegen_scope *s, node *tree, int val)
           push();
           codegen(s, tree, VAL);
           pop(); pop();
-          genop(s, MKOP_ABC(OP_SUB, cursp(), sym, 2));
+          genop_send(s, MKOP_ABC(OP_SUB, cursp(), sym, 2));
         }
         break;
       }
@@ -1883,7 +1906,7 @@ codegen(codegen_scope *s, node *tree, int val)
     codegen(s, tree, val);
     if (val) {
       pop();
-      genop(s, MKOP_ABC(OP_SEND, cursp(), new_msym(s, mrb_intern(s->mrb, "intern")), 0));
+      genop_send(s, MKOP_ABC(OP_SEND, cursp(), new_msym(s, mrb_intern(s->mrb, "intern")), 0));
       push();
     }
     break;
@@ -1930,7 +1953,7 @@ codegen(codegen_scope *s, node *tree, int val)
       push();
       genop(s, MKOP_A(OP_LOADNIL, cursp()));
       pop_n(3);
-      genop(s, MKOP_ABC(OP_SEND, cursp(), c, 2));
+      genop_send(s, MKOP_ABC(OP_SEND, cursp(), c, 2));
       if (val) {
         push();
       }
@@ -1948,7 +1971,7 @@ codegen(codegen_scope *s, node *tree, int val)
       push();
       genop(s, MKOP_A(OP_LOADNIL, cursp()));
       pop_n(2);
-      genop(s, MKOP_ABC(OP_SEND, cursp(), undef, 2));
+      genop_send(s, MKOP_ABC(OP_SEND, cursp(), undef, 2));
       if (val) {
         push();
       }

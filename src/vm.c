@@ -825,6 +825,9 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
       mrb_callinfo *ci;
       mrb_value recv, result;
       mrb_sym mid = syms[GETARG_B(i)];
+      int rcvoff = GETARG_Bx(*(pc + 1));
+      int mthoff = rcvoff + 1;
+      struct RClass *orecv = (struct RClass *)(pool[rcvoff].value.i);
 
       recv = regs[a];
       if (GET_OPCODE(i) != OP_SENDB) {
@@ -836,20 +839,29 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
 	}
       }
       c = mrb_class(mrb, recv);
-      m = mrb_method_search_vm(mrb, &c, mid);
-      if (!m) {
-        mrb_value sym = mrb_symbol_value(mid);
+      if (c != orecv) {
+	m = mrb_method_search_vm(mrb, &c, mid);
+	if (!m) {
+	  mrb_value sym = mrb_symbol_value(mid);
 
-        mid = mrb_intern(mrb, "method_missing");
-        m = mrb_method_search_vm(mrb, &c, mid);
-        if (n == CALL_MAXARGS) {
-          mrb_ary_unshift(mrb, regs[a+1], sym);
-        }
-        else {
-          memmove(regs+a+2, regs+a+1, sizeof(mrb_value)*(n+1));
-	  regs[a+1] = sym;
-          n++;
-        }
+	  mid = mrb_intern(mrb, "method_missing");
+	  m = mrb_method_search_vm(mrb, &c, mid);
+	  if (n == CALL_MAXARGS) {
+	    mrb_ary_unshift(mrb, regs[a+1], sym);
+	  }
+	  else {
+	    memmove(regs+a+2, regs+a+1, sizeof(mrb_value)*(n+1));
+	    regs[a+1] = sym;
+	    n++;
+	  }
+	}
+	else {
+	  pool[rcvoff].value.i = (mrb_int) c;
+	  pool[mthoff].value.i = (mrb_int) m;
+	}
+      }
+      else {
+	m = (struct RProc *)(pool[mthoff].value.i);
       }
 
       /* push callinfo */
