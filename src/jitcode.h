@@ -392,7 +392,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
         subs(r3, r0, r1);
         break;
       }
-      str(r2, r3);
+      str(r3, r2);
       gen_overflow_check(op);
     }
     else if (r0type == MRB_TT_FLOAT && r1type == MRB_TT_FLOAT) {
