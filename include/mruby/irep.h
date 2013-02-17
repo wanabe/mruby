@@ -14,10 +14,10 @@ extern "C" {
 #endif
 
 typedef struct mrb_irep {
-  int idx:16;
-  int nlocals:16;
-  int nregs:16;
-  int flags:8;
+  short idx;
+  short nlocals;
+  short nregs;
+  signed char flags;
 
   mrb_code *iseq;
   mrb_value *pool;
@@ -33,7 +33,6 @@ typedef struct mrb_irep {
   /* JIT stuff */
   int *prof_info;
   mrbjit_codetab *jit_entry_tab;
-  mrbjit_comp_info *compile_info;
 #endif
 
   mrb_int is_method_cache_used;
@@ -41,10 +40,12 @@ typedef struct mrb_irep {
 
 typedef struct mrbjit_vmstatus {
   mrb_irep **irep;
+  struct RProc **proc;
   mrb_code **pc;
   mrb_value **pool;
   mrb_sym **syms;
   mrb_value **regs;
+  int *ai;
 } mrbjit_vmstatus;
 
 #define MRB_ISEQ_NO_FREE 1

@@ -21,13 +21,16 @@ mrbjit_gen_jump_block(mrbjit_code_area coderaw, void *entry)
 static MRBJitCode *the_code = new MRBJitCode();
 
 const void *
-mrbjit_emit_code(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs)
+mrbjit_emit_code(mrb_state *mrb, mrbjit_vmstatus *status)
 {
-  MRBJitCode *code = (MRBJitCode *) irep->compile_info->code_base;
+  mrb_irep *irep = *status->irep;
+  MRBJitCode *code = (MRBJitCode *)mrb->compile_info.code_base;
+  mrb_value *regs = *status->regs;
+  mrb_code **ppc = status->pc;
 
   if (code == NULL) {
     code = the_code;
-    irep->compile_info->code_base = code;
+    mrb->compile_info.code_base = code;
     code->gen_entry(mrb, irep);
   }
 
@@ -66,6 +69,9 @@ mrbjit_emit_code(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs
 
   case OP_GETCONST:
     return code->emit_getconst(mrb, irep, ppc);
+
+  case OP_SEND:
+    return code->emit_send(mrb, status);
 
   case OP_ADD:
     return code->emit_add(mrb, irep, ppc, regs);

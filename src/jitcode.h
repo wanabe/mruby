@@ -15,7 +15,11 @@ extern "C" {
 #include "mruby/irep.h"
 #include "mruby/value.h"
 #include "mruby/variable.h"
+#include "mruby/proc.h"
+#include "mruby/class.h"
 #include "mruby/jit.h"
+
+void mrbjit_exec_send(mrb_state *, mrbjit_vmstatus *);
 } /* extern "C" */
 
 #ifdef ENABLE_JIT
@@ -318,6 +322,39 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     movw(r0, 0);
     mov32(r1, mrb_mktt(MRB_TT_FALSE));
     strd(r0, offset(r10, dstoff, r2));
+
+    return code;
+  }
+
+#define OffsetOf(s_type, field) ((size_t) &((s_type *)0)->field) 
+#define CALL_MAXARGS 127
+
+  const void *
+    emit_send(mrb_state *mrb, mrbjit_vmstatus *status)
+  {
+    const void *code = getCurr();
+    
+    /*push(ecx);
+    push(ebx);
+    mov(eax, ptr[esp + 12]);
+    push(eax);*/
+    ldr(r1, sp);
+    push(r9, r10, fp, lr);
+    /* Update pc */
+    /*mov(eax, dword [eax + OffsetOf(mrbjit_vmstatus, pc)]);
+    mov(dword [eax], (Xbyak::uint32)(*status->pc));*/
+    ldr(r0, offset(r1, OffsetOf(mrbjit_vmstatus, pc), r2));
+    mov32(r2, (Xtaak::uint32)(*status->pc));
+    str(r2, r0);
+
+    /*push((Xbyak::uint32)mrb);
+    call((void *)mrbjit_exec_send);
+    add(esp, 8);
+    pop(ebx);
+    pop(ecx);*/
+    mov32(r0, (Xtaak::uint32)mrb);
+    bl((void *)mrbjit_exec_send);
+    pop(r9, r10, fp, lr);
 
     return code;
   }
