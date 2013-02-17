@@ -98,7 +98,8 @@ enum mrb_vtype {
   MRB_TT_FILE,        /*  24 */
   MRB_TT_ENV,         /*  25 */
   MRB_TT_DATA,        /*  26 */
-  MRB_TT_MAXDEFINE    /*  27 */
+  MRB_TT_CACHE_VALUE, /*  27 */
+  MRB_TT_MAXDEFINE    /*  28 */
 };
 
 #ifdef MRB_ENDIAN_BIG
@@ -274,6 +275,15 @@ mrb_undef_value(void)
   mrb_value v;
 
   MRB_SET_VALUE(v, MRB_TT_UNDEF, value.i, 0);
+  return v;
+}
+
+static inline mrb_value
+mrb_cache_value(void *p)
+{
+  mrb_value v;
+
+  MRB_SET_VALUE(v, MRB_TT_CACHE_VALUE, value.p, p);
   return v;
 }
 

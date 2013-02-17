@@ -136,6 +136,7 @@ typedef struct mrb_state {
   struct RClass *eException_class;
   struct RClass *eStandardError_class;
 
+  mrb_int is_method_cache_used;
   void *ud; /* auxiliary data */
 } mrb_state;
 

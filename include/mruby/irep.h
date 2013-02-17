@@ -35,6 +35,8 @@ typedef struct mrb_irep {
   mrbjit_codetab *jit_entry_tab;
   mrbjit_comp_info *compile_info;
 #endif
+
+  mrb_int is_method_cache_used;
 } mrb_irep;
 
 typedef struct mrbjit_vmstatus {
