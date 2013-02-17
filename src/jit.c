@@ -87,7 +87,7 @@ search_codeinfo_prev(mrbjit_codetab *tab, mrb_code *prev_pc)
   return NULL;
 }
 
-void
+void *
 mrbjit_dispatch(mrb_state *mrb, mrbjit_vmstatus *status)
 {
   mrb_irep *irep = *status->irep;
@@ -99,7 +99,7 @@ mrbjit_dispatch(mrb_state *mrb, mrbjit_vmstatus *status)
   mrb_code *prev_pc;
 
   if (mrb->compile_info.disable_jit) {
-    return;
+    return status->optable[GET_OPCODE(**ppc)];
   }
 
   prev_pc = mrb->compile_info.prev_pc;
@@ -127,6 +127,8 @@ mrbjit_dispatch(mrb_state *mrb, mrbjit_vmstatus *status)
     }
 
     if (ci->entry) {
+      void *rc;
+
       //printf("%x %x \n", ci->entry, *ppc);
       /*asm("push %ecx");
       asm("mov %0, %%ecx"
@@ -158,13 +160,23 @@ mrbjit_dispatch(mrb_state *mrb, mrbjit_vmstatus *status)
 
       /*asm("add $0x4, %esp");
       asm("pop %ebx");
-      asm("pop %ecx");*/
+      asm("pop %ecx");
+
+      asm("mov %%eax, %0"
+	  : "=g"(rc));*/
       asm("add sp, #4");
       asm("ldmfd sp!, {r9, r10}");
+
+      asm("mov %0, r0"
+	  : "=r"(rc));
       //printf("%x \n", *ppc);
 
       irep = *status->irep;
       regs = *status->regs;
+      if (rc) {
+	mrb->compile_info.prev_pc = *ppc;
+	return rc;
+      }
       //      printf("%x %x \n", ci->entry, regs);
     }
   }
@@ -188,6 +200,8 @@ mrbjit_dispatch(mrb_state *mrb, mrbjit_vmstatus *status)
     }
   }
   mrb->compile_info.prev_pc = *ppc;
+
+  return status->optable[GET_OPCODE(**ppc)];
 }
 
 #define SET_NIL_VALUE(r) MRB_SET_VALUE(r, MRB_TT_FALSE, value.i, 0)

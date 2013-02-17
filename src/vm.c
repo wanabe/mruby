@@ -508,9 +508,9 @@ argnum_error(mrb_state *mrb, int num)
 }
 
 #ifdef ENABLE_JIT
-void mrbjit_dispatch(mrb_state *, mrbjit_vmstatus *);
+void *mrbjit_dispatch(mrb_state *, mrbjit_vmstatus *);
 #else
-#define mrbjit_dispatch(mrb, status)
+#define mrbjit_dispatch(mrb, status) optable[GET_OPCODE(i)]
 #endif
 
 #ifdef __GNUC__
@@ -530,8 +530,8 @@ void mrbjit_dispatch(mrb_state *, mrbjit_vmstatus *);
 
 #define INIT_DISPATCH JUMP; return mrb_nil_value();
 #define CASE(op) L_ ## op:
-#define NEXT ++pc;mrbjit_dispatch(mrb, &status);i=*pc; goto *optable[GET_OPCODE(i)]
-#define JUMP mrbjit_dispatch(mrb, &status);i=*pc; goto *optable[GET_OPCODE(i)]
+#define NEXT ++pc;gtptr = mrbjit_dispatch(mrb, &status);i=*pc; goto *gtptr
+#define JUMP gtptr = mrbjit_dispatch(mrb, &status);i=*pc; goto *gtptr
 
 #define END_DISPATCH
 
@@ -555,9 +555,7 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
   int ai = mrb_gc_arena_save(mrb);
   jmp_buf *prev_jmp = (jmp_buf *)mrb->jmp;
   jmp_buf c_jmp;
-  mrbjit_vmstatus status = {
-    &irep, &proc, &pc, &pool, &syms, &regs, &ai
-  };
+  void *gtptr;			/* Use in NEXT/JUMP */
 
 #ifdef DIRECT_THREADED
   static void *optable[] = {
@@ -582,7 +580,14 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
     &&L_OP_METHOD, &&L_OP_SCLASS, &&L_OP_TCLASS,
     &&L_OP_DEBUG, &&L_OP_STOP, &&L_OP_ERR,
   };
+
+  void *gototable[] = {
+    &&L_RAISE, &&L_RETURN, &&L_RESCUE, &&L_SEND, &&L_STOP
+  };
 #endif
+  mrbjit_vmstatus status = {
+    &irep, &proc, &pc, &pool, &syms, &regs, &ai, optable, gototable
+  };
 
 
   if (setjmp(c_jmp) == 0) {

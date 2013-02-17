@@ -64,9 +64,11 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     gen_exit(mrb_code *mruby_pc) 
   {
     /*mov(dword [ebx], (Xbyak::uint32)pc);
+    xor(eax, eax);
     ret();*/
     ldr(r0, "@f");
     str(r0, r9);
+    movw(r0, 0);
     mov(pc, lr);
     L("@@");
     dd((Xtaak::uint32)mruby_pc);
@@ -103,9 +105,11 @@ class MRBJitCode: public Xtaak::CodeGenerator {
 
     /* Guard fail exit code */
     /*mov(dword [ebx], (Xbyak::uint32)pc);
+    xor(eax, eax);
     ret();*/
     mov32(r0, (Xtaak::uint32)mruby_pc);
     str(r0, r9);
+    movw(r0, 0);
     mov(pc, lr);
     L("@@");
   }
@@ -126,9 +130,11 @@ class MRBJitCode: public Xtaak::CodeGenerator {
 
     /* Guard fail exit code */
     /*mov(dword [ebx], (Xbyak::uint32)pc);
+    xor(eax, eax);
     ret();*/
     mov32(r0, (Xtaak::uint32)mruby_pc);
     str(r0, r9);
+    movw(r0, 0);
     mov(pc, lr);
     L("@@");
   }
@@ -449,10 +455,12 @@ class MRBJitCode: public Xtaak::CodeGenerator {
       vstr(d0, r2);
     }
     else {
-      /*mov(dword [ebx], (Xbyak::uint32)*ppc);*/
-      /*ret();*/
+      /*mov(dword [ebx], (Xbyak::uint32)*ppc);
+      xor(eax, eax);
+      ret();*/
       ldr(r0, "@f");
       str(r0, r9);
+      movw(r0, 0);
       mov(pc, lr);
       L("@@");
       dd((Xtaak::uint32)*ppc);
@@ -579,9 +587,11 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     }
     else {
       /*mov(dword [ebx], (Xbyak::uint32)*ppc);
+      xor(eax, eax);
       ret();*/
       ldr(r0, "@f");
       str(r0, r9);
+      movw(r0, 0);
       mov(pc, lr);
       L("@@");
       dd((Xtaak::uint32)*ppc);
