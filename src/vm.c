@@ -495,32 +495,6 @@ void mrbjit_dispatch(mrb_state *, mrbjit_vmstatus *);
 #define mrbjit_dispatch(mrb, status)
 #endif
 
-static void
-clear_method_cache(mrb_state *mrb)
-{
-  int i;
-  int j;
-  int ilen;
-  int plen;
-  mrb_irep *irep;
-  mrb_value *pool;
-
-  ilen = mrb->irep_len;
-  for (i = 0; i < ilen; i++) {
-    irep = mrb->irep[i];
-    if (irep->is_method_cache_used) {
-      plen = irep->plen;
-      pool = irep->pool;
-      for (j = 0; j < plen; j++) {
-	if (mrb_type(pool[j]) == MRB_TT_CACHE_VALUE) {
-	  pool[j].value.p = 0;
-	}
-      }
-      irep->is_method_cache_used = 0;
-    }
-  }
-}
-
 #ifdef __GNUC__
 #define DIRECT_THREADED
 #endif
@@ -1915,10 +1889,6 @@ mrb_run(mrb_state *mrb, struct RProc *proc, mrb_value self)
       int a = GETARG_A(i);
       struct RClass *c = mrb_class_ptr(regs[a]);
 
-      if (mrb->is_method_cache_used) {
-	clear_method_cache(mrb);
-	mrb->is_method_cache_used = 0;
-      }
       mrb_define_method_vm(mrb, c, syms[GETARG_B(i)], regs[a+1]);
       mrb_gc_arena_restore(mrb, ai);
       NEXT;
