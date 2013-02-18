@@ -53,6 +53,19 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     return regDst;
   }
 
+  void
+    call(void *func, const Xtaak::Reg &regDst)
+  {
+    int off = ((long)func - (long)getCurr() - 8) >> 2;
+    if (off < -0x800000 || off > 0x7fffff) {
+      mov32(regDst, (Xtaak::uint32)func);
+      blx(regDst);
+    }
+    else {
+      bl(func);
+    }
+  }
+
   const void *
     gen_entry(mrb_state *mrb, mrb_irep *irep) 
   {
@@ -260,7 +273,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     add(r0, r0, r10);
     mov32(r1, (Xtaak::uint32)mrb);
     mov32(r2, (Xtaak::uint32)irep->syms[idpos]);
-    bl((void *)mrb_vm_iv_get);
+    call((void*)mrb_vm_iv_get, r4);
     pop(r9, r10, fp, lr);
 
     return code;
@@ -290,7 +303,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     ldrd(r2, offset(r10, srcoff, r0));
     mov32(r0, (Xtaak::uint32)mrb);
     mov32(r1, (Xtaak::uint32)irep->syms[idpos]);
-    bl((void *)mrb_vm_iv_set);
+    call((void*)mrb_vm_iv_set, r4);
     pop(r9, r10, fp, lr);
 
     return code;
@@ -359,7 +372,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     pop(ebx);
     pop(ecx);*/
     mov32(r0, (Xtaak::uint32)mrb);
-    bl((void *)mrbjit_exec_send);
+    call((void*)mrbjit_exec_send, r4);
     pop(r9, r10, fp, lr);
 
     return code;
@@ -759,7 +772,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov32(r1, (Xtaak::uint32)mrb);
     mov32(r2, uppos);
     mov32(r3, idxpos);
-    bl((void *)mrb_uvget);
+    call((void*)mrb_uvget, r4);
     pop(r9, r10, fp, lr);
 
     return code;
@@ -795,7 +808,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov32(r0, (Xtaak::uint32)mrb);
     mov32(r1, uppos);
     mov32(r2, idxpos);
-    bl((void *)mrb_uvset);
+    call((void*)mrb_uvset, r4);
     add(sp, sp, argsize);
     pop(r9, r10, fp, lr);
 
