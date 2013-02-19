@@ -515,7 +515,7 @@ mrbjit_argnum_error(mrb_state *mrb, int num)
 }
 void *mrbjit_dispatch(mrb_state *, mrbjit_vmstatus *);
 #else
-#define mrbjit_dispatch(mrb, status) optable[GET_OPCODE(i)]
+#define mrbjit_dispatch(mrb, status) optable[GET_OPCODE(*pc)]
 #endif
 
 #ifdef __GNUC__
