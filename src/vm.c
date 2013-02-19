@@ -508,6 +508,11 @@ argnum_error(mrb_state *mrb, int num)
 }
 
 #ifdef ENABLE_JIT
+void
+mrbjit_argnum_error(mrb_state *mrb, int num)
+{
+  argnum_error(mrb, num);
+}
 void *mrbjit_dispatch(mrb_state *, mrbjit_vmstatus *);
 #else
 #define mrbjit_dispatch(mrb, status) optable[GET_OPCODE(i)]

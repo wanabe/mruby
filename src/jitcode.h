@@ -20,6 +20,7 @@ extern "C" {
 #include "mruby/jit.h"
 
 void mrbjit_exec_send(mrb_state *, mrbjit_vmstatus *);
+void mrbjit_exec_enter(mrb_state *, mrbjit_vmstatus *);
 } /* extern "C" */
 
 #ifdef ENABLE_JIT
@@ -374,6 +375,68 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     mov32(r0, (Xtaak::uint32)mrb);
     call((void*)mrbjit_exec_send, r4);
     pop(r9, r10, fp, lr);
+
+    /*cmp(eax, eax);
+    jz("@f");
+    mov(dword [ebx], (Xbyak::uint32)(**status->pc));
+    ret();
+    L("@@");*/
+    cmp(r0, r0);
+    beq("@f");
+    mov32(r0, (Xtaak::uint32)(**status->pc));
+    str(r0, r9);
+    mov(pc, lr);
+    L("@@");
+
+    /*mov(eax, ptr[esp + 4]);
+    mov(eax, dword [eax + OffsetOf(mrbjit_vmstatus, regs)]);
+    mov(ecx, dword [eax]);*/
+    ldr(r1, sp);
+    ldr(r0, offset(r1, OffsetOf(mrbjit_vmstatus, regs), r2));
+    ldr(r10, r0);
+
+    return code;
+  }
+
+  const void *
+    emit_enter(mrb_state *mrb, mrbjit_vmstatus *status)
+  {
+    const void *code = getCurr();
+
+    /*push(ecx);
+    push(ebx);
+    mov(eax, ptr[esp + 12]);
+    push(eax);*/
+    ldr(r1, sp);
+    push(r9, r10, fp, lr);
+    /* Update pc */
+    /*mov(eax, dword [eax + OffsetOf(mrbjit_vmstatus, pc)]);
+    mov(dword [eax], (Xbyak::uint32)(*status->pc));*/
+    ldr(r0, offset(r1, OffsetOf(mrbjit_vmstatus, pc), r2));
+    mov32(r2, (Xtaak::uint32)(*status->pc));
+    str(r2, r0);
+
+    /*push((Xbyak::uint32)mrb);
+    call((void *)mrbjit_exec_enter);
+    add(esp, 8);
+    pop(ebx);
+    pop(ecx);*/
+    mov32(r0, (Xtaak::uint32)mrb);
+    call((void*)mrbjit_exec_enter, r4);
+    pop(r9, r10, fp, lr);
+
+
+    /*cmp(eax, eax);
+    jz("@f");
+    mov(dword [ebx], (Xbyak::uint32)(**status->pc));
+    ret();
+    L("@@");*/
+    cmp(r0, r0);
+    beq("@f");
+    mov32(r0, (Xtaak::uint32)(**status->pc));
+    str(r0, r9);
+    mov(pc, lr);
+    L("@@");
 
     return code;
   }
