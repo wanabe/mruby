@@ -59,7 +59,7 @@ search_codeinfo_prev(mrbjit_codetab *tab, mrb_code *prev_pc, mrb_code *caller_pc
 
   for (i = 0; i < tab->size; i++) {
     entry = tab->body + i;
-    if (entry->prev_pc == prev_pc && entry->caller_pc == caller_pc ) {
+    if (entry->prev_pc == prev_pc && entry->caller_pc == caller_pc) {
       return entry;
     }
   }
@@ -84,7 +84,12 @@ mrbjit_dispatch(mrb_state *mrb, mrbjit_vmstatus *status)
   }
 
   prev_pc = mrb->compile_info.prev_pc;
-  caller_pc = mrb->ci->pc;
+  if (irep->ilen < NO_INLINE_METHOD_LEN) {
+    caller_pc = mrb->ci->pc;
+  }
+  else {
+    caller_pc = NULL;
+  }
 
   cbase = mrb->compile_info.code_base;
   n = ISEQ_OFFSET_OF(*ppc);
@@ -95,7 +100,7 @@ mrbjit_dispatch(mrb_state *mrb, mrbjit_vmstatus *status)
     ci = NULL;
   }
 
-  if (cbase && ci && *ppc == prev_pc + 1) {
+  if (cbase && ci) {
     if (ci->entry) {
       mrbjit_gen_jump_block(cbase, ci->entry);
     }
