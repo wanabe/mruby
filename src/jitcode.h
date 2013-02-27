@@ -109,11 +109,11 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   void 
-    gen_jmp(mrb_state *mrb, mrb_irep *irep, mrb_code *newpc) 
+    gen_jmp(mrb_state *mrb, mrb_irep *irep, mrb_code *curpc, mrb_code *newpc) 
   {
     mrbjit_code_info *ci;
     int n = ISEQ_OFFSET_OF(newpc);
-    ci = search_codeinfo_cbase(irep->jit_entry_tab + n, newpc);
+    ci = search_codeinfo_prev(irep->jit_entry_tab + n, curpc);
     if (ci) {
       if (ci->entry) {
 	jmp((void *)ci->entry, r0);
@@ -126,8 +126,9 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   void 
-    gen_type_guard(enum mrb_vtype tt, mrb_code *mruby_pc, const Xtaak::Reg &reg)
+    gen_type_guard(mrb_state *mrb, enum mrb_vtype tt, mrb_code *mruby_pc, const Xtaak::Reg &reg)
   {
+    mrb->compile_info.nest_level = 0;
     /* Input eax for type tag
     if (tt == MRB_TT_FLOAT) {
       cmp(eax, 0xfff00000);
@@ -160,8 +161,9 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   void
-    gen_bool_guard(int b, mrb_code *mruby_pc)
+   gen_bool_guard(mrb_state *mrb, int b, mrb_code *mruby_pc)
   {
+    mrb->compile_info.nest_level = 0;
     /* Input eax for tested boolean */
     /*cmp(eax, 0xfff00001);*/
     add(r0, r0, 0x100000);
@@ -430,6 +432,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     ldr(r1, sp);
     ldr(r0, offset(r1, OffsetOf(mrbjit_vmstatus, regs), r2));
     ldr(r10, r0);
+    mrb->compile_info.nest_level++;
 
     return code;
   }
@@ -447,19 +450,20 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_return(mrb_state *mrb, mrbjit_vmstatus *status)
   {
     const void *code = getCurr();
+    mrb->compile_info.nest_level--;
+    if (mrb->compile_info.nest_level != 0) {
+      return NULL;
+    }
+
     call_cfunc_status(mrb, status, (void*)mrbjit_exec_return);
 
     /*mov(eax, ptr[esp + 4]);
     mov(eax, dword [eax + OffsetOf(mrbjit_vmstatus, regs)]);
-    mov(ecx, dword [eax]);
-    xor(eax, eax);
-    ret();*/
+    mov(ecx, dword [eax]);*/
 
     ldr(r1, sp);
     ldr(r0, offset(r1, OffsetOf(mrbjit_vmstatus, regs), r2));
     ldr(r10, r0);
-    movw(r0, 0);
-    mov(pc, lr);
 
     return code;
   }
@@ -497,7 +501,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   bool
-    gen_arth(const char op, mrb_code **ppc, mrb_value *regs)
+    gen_arth(mrb_state *mrb, const char op, mrb_code **ppc, mrb_value *regs)
   {
     int reg0pos = GETARG_A(**ppc);
     int reg1pos = reg0pos + 1;
@@ -513,12 +517,12 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     movw(r2, reg0off);
     add(r2, r2, r10);
     ldr(r1, r2 + 4);
-    gen_type_guard(r0type, *ppc, r1);
+    gen_type_guard(mrb, r0type, *ppc, r1);
     /*mov(eax, dword [ecx + reg1off + 4]); / * Get type tag */
     movw(r3, reg1off);
     add(r3, r3, r10);
     ldr(r1, r3 + 4);
-    gen_type_guard(r1type, *ppc, r1);
+    gen_type_guard(mrb, r1type, *ppc, r1);
 
     if (r0type == MRB_TT_FIXNUM && r1type == MRB_TT_FIXNUM) {
       /*mov(eax, dword [ecx + reg0off]);*/
@@ -571,7 +575,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_add(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    if (!gen_arth('+', ppc, regs)) { return NULL; }
+    if (!gen_arth(mrb, '+', ppc, regs)) { return NULL; }
     return code;
   }
 
@@ -579,7 +583,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_sub(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    if (!gen_arth('-', ppc, regs)) { return NULL; }
+    if (!gen_arth(mrb, '-', ppc, regs)) { return NULL; }
     return code;
   }
 
@@ -632,7 +636,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   void
-    gen_arth_i(const char op, mrb_code **ppc, mrb_value *regs)
+    gen_arth_i(mrb_state *mrb, const char op, mrb_code **ppc, mrb_value *regs)
   {
     const Xtaak::uint32 y = GETARG_C(**ppc);
     const Xtaak::uint32 off = GETARG_A(**ppc) * sizeof(mrb_value);
@@ -642,7 +646,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     movw(r2, off);
     add(r2, r2, r10);
     ldr(r1, r2 + 4); /* Get type tag */
-    gen_type_guard(atype, *ppc, r1);
+    gen_type_guard(mrb, atype, *ppc, r1);
 
     if (atype == MRB_TT_FIXNUM) {
       /*mov(eax, dword [ecx + off]);
@@ -701,7 +705,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_addi(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    gen_arth_i('+', ppc, regs);
+    gen_arth_i(mrb, '+', ppc, regs);
     return code;
   }
 
@@ -709,12 +713,12 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_subi(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    gen_arth_i('-', ppc, regs);
+    gen_arth_i(mrb, '-', ppc, regs);
     return code;
   }
 
   void
-    gen_comp(Cond cond, mrb_code **ppc, mrb_value *regs)
+    gen_comp(mrb_state *mrb, Cond cond, mrb_code **ppc, mrb_value *regs)
   {
     int regno = GETARG_A(**ppc);
     const Xtaak::uint32 off0 = regno * sizeof(mrb_value);
@@ -723,9 +727,9 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     movw(ip, off0);
     add(ip, ip, r10);
     ldm(ip, r0, r1, r2, r3);
-    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno]), *ppc, r1);
+    gen_type_guard(mrb, (enum mrb_vtype)mrb_type(regs[regno]), *ppc, r1);
     /*mov(eax, dword [ecx + off1 + 4]); / * Get type tag */
-    gen_type_guard((enum mrb_vtype)mrb_type(regs[regno + 1]), *ppc, r3);
+    gen_type_guard(mrb, (enum mrb_vtype)mrb_type(regs[regno + 1]), *ppc, r3);
 
     if (mrb_type(regs[regno]) == MRB_TT_FLOAT &&
         mrb_type(regs[regno + 1]) == MRB_TT_FIXNUM) {
@@ -785,13 +789,13 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     setCond(AL);
     movw(r0, 1);
     stm(ip, r0, r1);
- }
-  
+}
+
   const void *
     emit_eq(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    gen_comp(EQ, ppc, regs);
+    gen_comp(mrb, EQ, ppc, regs);
 
     return code;
   }
@@ -800,7 +804,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_lt(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    gen_comp(LT, ppc, regs);
+    gen_comp(mrb, LT, ppc, regs);
 
     return code;
   }
@@ -809,7 +813,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_le(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    gen_comp(LE, ppc, regs);
+    gen_comp(mrb, LE, ppc, regs);
 
     return code;
   }
@@ -818,7 +822,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_gt(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    gen_comp(GT, ppc, regs);
+    gen_comp(mrb, GT, ppc, regs);
 
     return code;
   }
@@ -827,7 +831,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_ge(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs) 
   {
     const void *code = getCurr();
-    gen_comp(GE, ppc, regs);
+    gen_comp(mrb, GE, ppc, regs);
 
     return code;
   }
@@ -905,7 +909,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_jmp(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
   {
     const void *code = getCurr();
-    gen_jmp(mrb, irep, *ppc + GETARG_sBx(**ppc));
+    gen_jmp(mrb, irep,  *ppc, *ppc + GETARG_sBx(**ppc));
     return code;
   }
 
@@ -919,11 +923,11 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     /*mov(eax, ptr [ecx + coff + 4]);*/
     ldr(r0, offset(r10, coff + 4, r1));
     if (mrb_test(regs[cond])) {
-      gen_bool_guard(1, *ppc + 1);
-      gen_jmp(mrb, irep, *ppc + GETARG_sBx(**ppc));
+      gen_bool_guard(mrb, 1, *ppc + 1);
+      gen_jmp(mrb, irep, *ppc, *ppc + GETARG_sBx(**ppc));
     }
     else {
-      gen_bool_guard(0, *ppc + GETARG_sBx(**ppc));
+      gen_bool_guard(mrb, 0, *ppc + GETARG_sBx(**ppc));
     }
 
     return code;
@@ -939,11 +943,11 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     /*mov(eax, ptr [ecx + coff + 4]);*/
     ldr(r0, offset(r10, coff + 4, r1));
     if (!mrb_test(regs[cond])) {
-      gen_bool_guard(0, *ppc + 1);
-      gen_jmp(mrb, irep, *ppc + GETARG_sBx(**ppc));
+      gen_bool_guard(mrb, 0, *ppc + 1);
+      gen_jmp(mrb, irep, *ppc, *ppc + GETARG_sBx(**ppc));
     }
     else {
-      gen_bool_guard(1, *ppc + GETARG_sBx(**ppc));
+      gen_bool_guard(mrb, 1, *ppc + GETARG_sBx(**ppc));
     }
 
     return code;

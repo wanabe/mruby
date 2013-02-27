@@ -122,6 +122,7 @@ mrbjit_dispatch(mrb_state *mrb, mrbjit_vmstatus *status)
     }
 
     cbase = mrb->compile_info.code_base = NULL;
+    mrb->compile_info.nest_level = 0;
   }
 
   if (ci && cbase == NULL) {
@@ -171,11 +172,11 @@ mrbjit_dispatch(mrb_state *mrb, mrbjit_vmstatus *status)
 
       irep = *status->irep;
       regs = *status->regs;
+      //printf("exit %x %x \n", ci->entry, regs);
       if (rc) {
 	mrb->compile_info.prev_pc = *ppc;
 	return rc;
       }
-      //printf("%x %x \n", ci->entry, regs);
     }
   }
   else {
@@ -184,10 +185,12 @@ mrbjit_dispatch(mrb_state *mrb, mrbjit_vmstatus *status)
     if (irep->prof_info[n]++ > COMPILE_THRESHOLD) {
       entry = mrbjit_emit_code(mrb, status);
       //      printf("size %x %x %x\n", irep->jit_entry_tab[n].size, *ppc, prev_pc);
-      ci = add_codeinfo(mrb, irep->jit_entry_tab + n);
-      ci->code_base = mrb->compile_info.code_base;
-      ci->prev_pc = prev_pc;
-      ci->used = 1;
+      if (ci == NULL) {
+	ci = add_codeinfo(mrb, irep->jit_entry_tab + n);
+	ci->prev_pc = prev_pc;
+	ci->used = 1;
+	ci->code_base = mrb->compile_info.code_base;
+      }
       ci->entry = entry;
     }
 
@@ -195,6 +198,7 @@ mrbjit_dispatch(mrb_state *mrb, mrbjit_vmstatus *status)
       /* Finish compile */
       mrbjit_gen_exit(cbase, mrb, irep, ppc);
       mrb->compile_info.code_base = NULL;
+      mrb->compile_info.nest_level = 0;
     }
   }
   mrb->compile_info.prev_pc = *ppc;
@@ -330,6 +334,7 @@ mrbjit_exec_enter(mrb_state *mrb, mrbjit_vmstatus *status)
   mrb_value *regs = *status->regs;
   mrb_code i = *pc;
 
+  //printf("enter %x %x \n", pc, mrb->ci);
   /* Ax             arg setup according to flags (24=5:5:1:5:5:1:1) */
   /* number of optional arguments times OP_JMP should follow */
   int ax = GETARG_Ax(i);
@@ -511,7 +516,7 @@ mrbjit_exec_return(mrb_state *mrb, mrbjit_vmstatus *status)
     (*status->regs)[acc] = v;
   }
 
-  printf("rc %x \n", *status->pc);
+  //printf("rc %x %x %s\n", *status->pc, mrb->ci, mrb_sym2name(mrb, mrb->ci->mid));
   return NULL;
 }
 #endif
