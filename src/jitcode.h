@@ -113,7 +113,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   {
     mrbjit_code_info *ci;
     int n = ISEQ_OFFSET_OF(newpc);
-    ci = search_codeinfo_prev(irep->jit_entry_tab + n, curpc);
+    ci = search_codeinfo_prev(irep->jit_entry_tab + n, curpc, mrb->ci->pc);
     if (ci) {
       if (ci->entry) {
 	jmp((void *)ci->entry, r0);
@@ -432,7 +432,6 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     ldr(r1, sp);
     ldr(r0, offset(r1, OffsetOf(mrbjit_vmstatus, regs), r2));
     ldr(r10, r0);
-    mrb->compile_info.nest_level++;
 
     return code;
   }
@@ -443,6 +442,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     const void *code = getCurr();
     call_cfunc_status(mrb, status, (void*)mrbjit_exec_enter);
 
+    mrb->compile_info.nest_level++;
     return code;
   }
 
