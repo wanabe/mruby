@@ -86,8 +86,8 @@ mrbjit_emit_code(mrb_state *mrb, mrbjit_vmstatus *status)
     //  case OP_MUL:
     //    return code->emit_mul(mrb, irep, ppc, regs);
 
-    //  case OP_DIV:
-    //    return code->emit_div(mrb, irep, ppc, regs);
+    //case OP_DIV:
+    //return code->emit_div(mrb, irep, ppc, regs);
 
   case OP_ADDI:
     return code->emit_addi(mrb, irep, ppc, regs);
@@ -115,6 +115,9 @@ mrbjit_emit_code(mrb_state *mrb, mrbjit_vmstatus *status)
 
   case OP_SETUPVAR:
     return code->emit_setupvar(mrb, irep, ppc);
+
+  case OP_JMP:
+    return code->emit_jmp(mrb, irep, ppc);
 
   case OP_JMPIF:
     return code->emit_jmpif(mrb, irep, ppc, regs);
