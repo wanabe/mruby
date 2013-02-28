@@ -89,18 +89,17 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   void 
-    gen_exit(mrb_code *mruby_pc, mrbjit_code_info *ci)
+    gen_exit(mrb_code *mruby_pc)
   {
+    const void* exit_ptr = getCurr();
     /*mov(dword [ebx], (Xbyak::uint32)pc);
-    mov(edx, (Xbyak::uint32)ci);
     xor(eax, eax);
-    xor(edx, edx);
+    mov(edx, (Xbyak::uint32)exit_ptr);
     ret();*/
     ldr(r0, "@f");
     str(r0, r9);
-    mov32(r1, (Xtaak::uint32)ci);
     movw(r0, 0);
-    movw(r1, 0);
+    mov32(r1, (Xtaak::uint32)exit_ptr);
     mov(pc, lr);
     L("@@");
     dd((Xtaak::uint32)mruby_pc);
@@ -142,7 +141,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
       }
       else {
 	newci->entry = (void *(*)())getCurr();
-	gen_exit(newpc, ci);
+	gen_exit(newpc);
       }
       mrb->compile_info.code_base = NULL;
     }
@@ -151,6 +150,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   void 
     gen_type_guard(mrb_state *mrb, enum mrb_vtype tt, mrb_code *mruby_pc, const Xtaak::Reg &reg)
   {
+    const void* exit_ptr;
     /* Input eax for type tag
     if (tt == MRB_TT_FLOAT) {
       cmp(eax, 0xfff00000);
@@ -172,14 +172,15 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     }
 
     /* Guard fail exit code */
+    exit_ptr = getCurr();
     /*mov(dword [ebx], (Xbyak::uint32)pc);
     xor(eax, eax);
-    xor(edx, edx);
+    mov(edx, (Xbyak::uint32)exit_ptr);
     ret();*/
     mov32(r0, (Xtaak::uint32)mruby_pc);
     str(r0, r9);
     movw(r0, 0);
-    movw(r1, 0);
+    mov32(r1, (Xtaak::uint32)exit_ptr);
     mov(pc, lr);
 
     L("@@");
@@ -188,6 +189,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   void
    gen_bool_guard(mrb_state *mrb, int b, mrb_code *mruby_pc)
   {
+    const void* exit_ptr = getCurr();
     /* Input eax for tested boolean */
     /*cmp(eax, 0xfff00001);*/
     add(r0, r0, 0x100000);
@@ -200,14 +202,15 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     }
 
     /* Guard fail exit code */
+    exit_ptr = getCurr();
     /*mov(dword [ebx], (Xbyak::uint32)pc);
     xor(eax, eax);
-    xor(edx, edx);
+    mov(edx, (Xbyak::uint32)exit_ptr);
     ret();*/
     mov32(r0, (Xtaak::uint32)mruby_pc);
     str(r0, r9);
     movw(r0, 0);
-    movw(r1, 0);
+    mov32(r1, (Xtaak::uint32)exit_ptr);
     mov(pc, lr);
 
     L("@@");
