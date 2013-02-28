@@ -89,14 +89,18 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   void 
-    gen_exit(mrb_code *mruby_pc) 
+    gen_exit(mrb_code *mruby_pc, mrbjit_code_info *ci)
   {
     /*mov(dword [ebx], (Xbyak::uint32)pc);
+    mov(edx, (Xbyak::uint32)ci);
     xor(eax, eax);
+    xor(edx, edx);
     ret();*/
     ldr(r0, "@f");
     str(r0, r9);
+    mov32(r1, (Xtaak::uint32)ci);
     movw(r0, 0);
+    movw(r1, 0);
     mov(pc, lr);
     L("@@");
     dd((Xtaak::uint32)mruby_pc);
@@ -109,23 +113,36 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   void 
-    gen_jmp(mrb_state *mrb, mrb_irep *irep, mrb_code *curpc, mrb_code *newpc) 
+    gen_jmp_patch(void *dst, void *target) 
   {
-    mrbjit_code_info *ci;
+    size_t cursize = getSize();
+    const Xtaak::uint32 *code = getCode();
+    size_t dstsize = (Xtaak::uint32*)dst - code;
+
+    setSize(dstsize);
+    jmp(target, r0);
+    setSize(cursize);
+  }
+
+  void 
+    gen_jmp(mrb_state *mrb, mrb_irep *irep, mrb_code *curpc, mrb_code *newpc, mrbjit_code_info *ci)
+  {
+    mrbjit_code_info *newci;
     int n = ISEQ_OFFSET_OF(newpc);
     if (irep->ilen < NO_INLINE_METHOD_LEN) {
-      ci = search_codeinfo_prev(irep->jit_entry_tab + n, curpc, mrb->ci->pc);
+      newci = search_codeinfo_prev(irep->jit_entry_tab + n, curpc, mrb->ci->pc);
     }
     else {
-      ci = search_codeinfo_prev(irep->jit_entry_tab + n, curpc, NULL);
+      newci = search_codeinfo_prev(irep->jit_entry_tab + n, curpc, NULL);
       mrb->compile_info.nest_level = 0;
     }
-    if (ci) {
-      if (ci->entry) {
-	jmp((void *)ci->entry, r0);
+    if (newci) {
+      if (newci->used > 0) {
+	jmp((void *)newci->entry, r0);
       }
       else {
-	gen_exit(newpc);
+	newci->entry = (void *(*)())getCurr();
+	gen_exit(newpc, ci);
       }
       mrb->compile_info.code_base = NULL;
     }
@@ -157,11 +174,14 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     /* Guard fail exit code */
     /*mov(dword [ebx], (Xbyak::uint32)pc);
     xor(eax, eax);
+    xor(edx, edx);
     ret();*/
     mov32(r0, (Xtaak::uint32)mruby_pc);
     str(r0, r9);
     movw(r0, 0);
+    movw(r1, 0);
     mov(pc, lr);
+
     L("@@");
   }
 
@@ -182,11 +202,14 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     /* Guard fail exit code */
     /*mov(dword [ebx], (Xbyak::uint32)pc);
     xor(eax, eax);
+    xor(edx, edx);
     ret();*/
     mov32(r0, (Xtaak::uint32)mruby_pc);
     str(r0, r9);
     movw(r0, 0);
+    movw(r1, 0);
     mov(pc, lr);
+
     L("@@");
   }
 
@@ -414,12 +437,13 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     /*cmp(eax, eax);
     jz("@f");
     mov(dword [ebx], (Xbyak::uint32)(**status->pc));
-    ret();
-    L("@@");*/
+    xor(edx, edx);
+    ret();*/
     cmp(r0, r0);
     beq("@f");
     mov32(r0, (Xtaak::uint32)(**status->pc));
     str(r0, r9);
+    movw(r1, 0);
     mov(pc, lr);
     L("@@");
   }
@@ -446,7 +470,6 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     const void *code = getCurr();
     call_cfunc_status(mrb, status, (void*)mrbjit_exec_enter);
 
-    mrb->compile_info.nest_level++;
     return code;
   }
 
@@ -454,11 +477,6 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     emit_return(mrb_state *mrb, mrbjit_vmstatus *status)
   {
     const void *code = getCurr();
-    mrb->compile_info.nest_level--;
-    if (mrb->compile_info.nest_level < 0) {
-      return NULL;
-    }
-
     call_cfunc_status(mrb, status, (void*)mrbjit_exec_return);
 
     /*mov(eax, ptr[esp + 4]);
@@ -564,10 +582,12 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     else {
       /*mov(dword [ebx], (Xbyak::uint32)*ppc);
       xor(eax, eax);
+      xor(edx, edx);
       ret();*/
       ldr(r0, "@f");
       str(r0, r9);
       movw(r0, 0);
+      movw(r1, 0);
       mov(pc, lr);
       L("@@");
       dd((Xtaak::uint32)*ppc);
@@ -695,10 +715,12 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     else {
       /*mov(dword [ebx], (Xbyak::uint32)*ppc);
       xor(eax, eax);
+      xor(edx, edx);
       ret();*/
       ldr(r0, "@f");
       str(r0, r9);
       movw(r0, 0);
+      movw(r1, 0);
       mov(pc, lr);
       L("@@");
       dd((Xtaak::uint32)*ppc);
@@ -910,15 +932,15 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   const void *
-    emit_jmp(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc)
+    emit_jmp(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrbjit_code_info *ci)
   {
     const void *code = getCurr();
-    gen_jmp(mrb, irep,  *ppc, *ppc + GETARG_sBx(**ppc));
+    gen_jmp(mrb, irep,  *ppc, *ppc + GETARG_sBx(**ppc), ci);
     return code;
   }
 
   const void *
-    emit_jmpif(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs)
+    emit_jmpif(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs, mrbjit_code_info *ci)
   {
     const void *code = getCurr();
     const int cond = GETARG_A(**ppc);
@@ -928,7 +950,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     ldr(r0, offset(r10, coff + 4, r1));
     if (mrb_test(regs[cond])) {
       gen_bool_guard(mrb, 1, *ppc + 1);
-      gen_jmp(mrb, irep, *ppc, *ppc + GETARG_sBx(**ppc));
+      gen_jmp(mrb, irep, *ppc, *ppc + GETARG_sBx(**ppc), ci);
     }
     else {
       gen_bool_guard(mrb, 0, *ppc + GETARG_sBx(**ppc));
@@ -938,7 +960,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
   }
 
   const void *
-    emit_jmpnot(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs)
+    emit_jmpnot(mrb_state *mrb, mrb_irep *irep, mrb_code **ppc, mrb_value *regs, mrbjit_code_info *ci)
   {
     const void *code = getCurr();
     const int cond = GETARG_A(**ppc);
@@ -948,7 +970,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     ldr(r0, offset(r10, coff + 4, r1));
     if (!mrb_test(regs[cond])) {
       gen_bool_guard(mrb, 0, *ppc + 1);
-      gen_jmp(mrb, irep, *ppc, *ppc + GETARG_sBx(**ppc));
+      gen_jmp(mrb, irep, *ppc, *ppc + GETARG_sBx(**ppc), ci);
     }
     else {
       gen_bool_guard(mrb, 1, *ppc + GETARG_sBx(**ppc));
