@@ -337,7 +337,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     add(r0, r0, r10);
     mov32(r1, (Xtaak::uint32)mrb);
     mov32(r2, (Xtaak::uint32)irep->syms[idpos]);
-    call((void*)mrb_vm_iv_get, r3);
+    call((void*)mrb_vm_iv_get, ip);
     pop(r9, r10, fp, lr);
 
     return code;
@@ -367,7 +367,7 @@ class MRBJitCode: public Xtaak::CodeGenerator {
     ldrd(r2, offset(r10, srcoff, r0));
     mov32(r0, (Xtaak::uint32)mrb);
     mov32(r1, (Xtaak::uint32)irep->syms[idpos]);
-    call((void*)mrb_vm_iv_set, r3);
+    call((void*)mrb_vm_iv_set, ip);
     pop(r9, r10, fp, lr);
 
     return code;
