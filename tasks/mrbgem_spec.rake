@@ -156,6 +156,25 @@ module MRuby
         f.puts %Q[#include "mruby/hash.h"]
       end
 
+      def patch(file)
+        MRuby.each_target do |target|
+          src = "#{root}/#{file}"
+          dst = "#{build_dir}/#{file}"
+          obj = objfile(dst.sub(/\.cc?$/, ""))
+          dir = File.dirname(src)
+          patchings << dst
+          file dst => src do |t|
+            dst = t.name
+            FileUtils.mkdir_p File.dirname(dst)
+            FileUtils.cp_r t.prerequisites.first, dst
+          end
+          return unless obj
+          file obj => dst do |t|
+            cc.run t.name, t.prerequisites.first, [], [dir]
+          end
+        end
+      end
+
     end # Specification
   end # Gem
 end # MRuby

@@ -7,7 +7,7 @@
 #ifndef MRUBY_IREP_H
 #define MRUBY_IREP_H
 
-#include "jit.h"
+#include "mruby/jit.h"
 #include <setjmp.h>
 
 #if defined(__cplusplus)
