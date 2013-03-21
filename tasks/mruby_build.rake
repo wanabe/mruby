@@ -44,7 +44,7 @@ module MRuby
     include Rake::DSL
     include LoadGems
     attr_accessor :name, :bins, :exts, :file_separator
-    attr_reader :libmruby, :gems, :patchings
+    attr_reader :libmruby, :gems, :patchs
 
     COMPILERS = %w(cc cxx objc asm)
     COMMANDS = COMPILERS + %w(linker archiver yacc gperf git exts mrbc)
@@ -75,7 +75,7 @@ module MRuby
         @mrbc = Command::Mrbc.new(self)
 
         @bins = %w(mruby mrbc mirb)
-        @gems, @libmruby, @patchings = [], [], []
+        @gems, @libmruby, @patchs = [], [], []
         @build_mrbtest_lib_only = false
 
         MRuby.targets[@name] = self
@@ -189,6 +189,45 @@ module MRuby
       end
       puts "================================================"
       puts
+    end
+
+    def patch(file, &b)
+      src = "#{root}/#{file}"
+      dst = "#{build_dir}/#{file}"
+      obj = objfile(dst.sub(/\.cc?$/, ""))
+      dir = File.dirname(src)
+      task :patch => dst
+      patchs << dst
+      file dst => src do |t|
+        dst = t.name
+        FileUtils.mkdir_p File.dirname(dst)
+        FileUtils.cp_r t.prerequisites.first, dst
+        File.open(dst, "r+", &b) if b
+      end
+      return unless obj
+      file obj => dst do |t|
+        cc.run t.name, t.prerequisites.first, [], [dir]
+      end
+    end
+
+    def line_after(f, line, patch)
+      nil while f.gets.chomp != line
+      pos = f.pos
+      rest = patch + f.read
+      f.pos = pos
+      f.print rest
+      f.pos = pos
+    end
+
+    def line_before(f, line, patch)
+      pos = f.pos
+      pos = f.pos while f.gets.chomp != line
+      pos2 = f.pos
+      f.pos = pos
+      rest = patch + f.read
+      f.pos = pos
+      f.print rest
+      f.pos = pos2
     end
   end # Build
 

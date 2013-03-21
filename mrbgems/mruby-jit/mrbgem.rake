@@ -1,7 +1,9 @@
 MRuby::Gem::Specification.new('mruby-jit') do |spec|
   spec.license = 'MIT'
   spec.authors = 'mruby-jit developers'
+end
 
+MRuby.each_target do |target|
   patch "include/mruby.h" do |f|
     line_after f, '#include "mruby/value.h"', <<-EOP
 

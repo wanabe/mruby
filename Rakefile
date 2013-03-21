@@ -103,5 +103,5 @@ end
 
 desc "patch to mruby core"
 MRuby.each_target do |t|
-  task :patch =>  patchings
+  task :patch =>  patchs
 end

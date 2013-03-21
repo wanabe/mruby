@@ -10,10 +10,10 @@ MRuby.each_target do
   objs += [objfile("#{current_build_dir}/y.tab")]
   objscc = Dir.glob("src/*.{cc}").map { |f| objfile(f.pathmap("#{build_dir}/%X")) }
   objs += objscc
-  self.libmruby << patchings
+  self.libmruby << patchs
   self.libmruby << objs
 
-  file libfile("#{build_dir}/lib/libmruby_core") => [*patchings, *objs] do |t|
+  file libfile("#{build_dir}/lib/libmruby_core") => [*patchs, *objs] do |t|
     archiver.run t.name, t.prerequisites
   end
 

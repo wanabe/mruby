@@ -155,48 +155,6 @@ module MRuby
         f.puts %Q[#include "mruby/array.h"]
         f.puts %Q[#include "mruby/hash.h"]
       end
-
-      def line_after(f, line, patch)
-        nil while f.gets.chomp != line
-        pos = f.pos
-        rest = patch + f.read
-        f.pos = pos
-        f.print rest
-        f.pos = pos
-      end
-
-      def line_before(f, line, patch)
-        pos = f.pos
-        pos = f.pos while f.gets.chomp != line
-        pos2 = f.pos
-        f.pos = pos
-        rest = patch + f.read
-        f.pos = pos
-        f.print rest
-        f.pos = pos2
-      end
-
-      def patch(file, &b)
-        MRuby.each_target do |target|
-          src = "#{root}/#{file}"
-          dst = "#{build_dir}/#{file}"
-          obj = objfile(dst.sub(/\.cc?$/, ""))
-          dir = File.dirname(src)
-          task :patch => dst
-          patchings << dst
-          file dst => src do |t|
-            dst = t.name
-            FileUtils.mkdir_p File.dirname(dst)
-            FileUtils.cp_r t.prerequisites.first, dst
-            File.open(dst, "r+", &b) if b
-          end
-          return unless obj
-          file obj => dst do |t|
-            cc.run t.name, t.prerequisites.first, [], [dir]
-          end
-        end
-      end
-
     end # Specification
   end # Gem
 end # MRuby
