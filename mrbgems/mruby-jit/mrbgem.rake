@@ -34,6 +34,36 @@ typedef struct mrbjit_comp_info {
     EOP
   end
 
-  patch "include/mruby/irep.h"
+  patch "include/mruby/irep.h" do |f|
+    line_after f, "#ifndef MRUBY_IREP_H", <<-EOP
+
+#include "mruby/jit.h"
+#include <setjmp.h>
+    EOP
+    line_before f, '} mrb_irep;', <<-EOP
+
+  mrb_int is_method_cache_used;
+
+  /* JIT stuff */
+  int *prof_info;
+  mrbjit_codetab *jit_entry_tab;
+    EOP
+    line_after f, '} mrb_irep;', <<-EOP
+
+typedef struct mrbjit_vmstatus {
+  mrb_irep **irep;
+  struct RProc **proc;
+  mrb_code **pc;
+  mrb_value **pool;
+  mrb_sym **syms;
+  mrb_value **regs;
+  int *ai;
+  void **optable;
+  void **gototable;
+  jmp_buf **prev_jmp;
+} mrbjit_vmstatus;
+    EOP
+  end
+
   patch "src/vm.c"
 end

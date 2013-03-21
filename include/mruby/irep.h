@@ -7,9 +7,6 @@
 #ifndef MRUBY_IREP_H
 #define MRUBY_IREP_H
 
-#include "mruby/jit.h"
-#include <setjmp.h>
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -29,26 +26,7 @@ typedef struct mrb_irep {
   short *lines;
 
   int ilen, plen, slen;
-
-  mrb_int is_method_cache_used;
-
-  /* JIT stuff */
-  int *prof_info;
-  mrbjit_codetab *jit_entry_tab;
 } mrb_irep;
-
-typedef struct mrbjit_vmstatus {
-  mrb_irep **irep;
-  struct RProc **proc;
-  mrb_code **pc;
-  mrb_value **pool;
-  mrb_sym **syms;
-  mrb_value **regs;
-  int *ai;
-  void **optable;
-  void **gototable;
-  jmp_buf **prev_jmp;
-} mrbjit_vmstatus;
 
 #define MRB_ISEQ_NO_FREE 1
 
