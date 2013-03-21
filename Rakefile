@@ -33,7 +33,7 @@ load "#{MRUBY_ROOT}/test/mrbtest.rake"
 
 ##############################
 # generic build targets, rules
-task :default => :all
+task :default => [:patch, :all]
 
 depfiles = MRuby.targets['host'].bins.map do |bin|
   install_path = MRuby.targets['host'].exefile("#{MRUBY_ROOT}/bin/#{bin}")
@@ -99,4 +99,9 @@ task :clean do
   end
   FileUtils.rm_f depfiles, { :verbose => $verbose }
   puts "Cleaned up build folder"
+end
+
+desc "patch to mruby core"
+MRuby.each_target do |t|
+  task :patch =>  patchings
 end

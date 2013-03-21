@@ -36,17 +36,6 @@ extern "C" {
 
 #include "mruby/value.h"
 
-static inline mrb_value
-mrb_cache_value(void *p)
-{
-  mrb_value v;
-
-  
-  MRB_SET_VALUE(v, MRB_TT_CACHE_VALUE, value.p, p);
-
-  return v;
-}
-
 typedef int32_t mrb_code;
 
 struct mrb_state;
@@ -64,7 +53,6 @@ typedef struct {
   int nregs;
   int argc;
   mrb_code *pc;
-  void *jit_entry;
   int acc;
   struct RClass *target_class;
   int ridx;
@@ -77,14 +65,6 @@ enum gc_state {
   GC_STATE_MARK,
   GC_STATE_SWEEP
 };
-
-typedef void * mrbjit_code_area;
-typedef struct mrbjit_comp_info {
-  mrb_code *prev_pc;
-  mrbjit_code_area code_base;
-  int disable_jit;
-  int nest_level;
-} mrbjit_comp_info;
 
 typedef struct mrb_state {
   void *jmp;
@@ -156,9 +136,7 @@ typedef struct mrb_state {
   struct RClass *eException_class;
   struct RClass *eStandardError_class;
 
-  mrb_int is_method_cache_used;
   void *ud; /* auxiliary data */
-  mrbjit_comp_info compile_info; /* JIT stuff */
 } mrb_state;
 
 typedef mrb_value (*mrb_func_t)(mrb_state *mrb, mrb_value);

@@ -3,6 +3,7 @@ MRuby.each_target do
   relative_from_root = File.dirname(__FILE__).relative_path_from(MRUBY_ROOT)
   current_build_dir = "#{build_dir}/#{relative_from_root}"
   cc.include_paths.unshift "#{build_dir}/include"
+  cxx.include_paths.unshift "#{build_dir}/include"
 
   lex_def = "#{current_dir}/lex.def"
   objs = Dir.glob("#{current_dir}/*.c").map { |f| objfile(f.pathmap("#{current_build_dir}/%n")) }
