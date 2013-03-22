@@ -12,8 +12,10 @@ MRuby.each_target do
   objs += objscc
   self.libmruby << patchs
   self.libmruby << objs
+  self.libmruby_core << patchs
+  self.libmruby_core << objs
 
-  file libfile("#{build_dir}/lib/libmruby_core") => [*patchs, *objs] do |t|
+  file libfile("#{build_dir}/lib/libmruby_core") => libmruby_core.flatten do |t|
     archiver.run t.name, t.prerequisites
   end
 

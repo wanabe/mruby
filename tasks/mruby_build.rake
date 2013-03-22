@@ -44,7 +44,7 @@ module MRuby
     include Rake::DSL
     include LoadGems
     attr_accessor :name, :bins, :exts, :file_separator
-    attr_reader :libmruby, :gems, :patchs
+    attr_reader :libmruby, :libmruby_core, :gems, :patchs
 
     COMPILERS = %w(cc cxx objc asm)
     COMMANDS = COMPILERS + %w(linker archiver yacc gperf git exts mrbc)
@@ -75,7 +75,7 @@ module MRuby
         @mrbc = Command::Mrbc.new(self)
 
         @bins = %w(mruby mrbc mirb)
-        @gems, @libmruby, @patchs = [], [], []
+        @gems, @libmruby, @libmruby_core, @patchs = [], [], [], []
         @build_mrbtest_lib_only = false
 
         MRuby.targets[@name] = self

@@ -19,11 +19,11 @@ MRuby.each_target do |build|
 end
 
 # load custom rules
+load "#{MRUBY_ROOT}/tasks/mrbgems.rake"
 load "#{MRUBY_ROOT}/src/mruby_core.rake"
 load "#{MRUBY_ROOT}/mrblib/mrblib.rake"
 load "#{MRUBY_ROOT}/tools/mrbc/mrbc.rake"
 
-load "#{MRUBY_ROOT}/tasks/mrbgems.rake"
 load "#{MRUBY_ROOT}/tasks/libmruby.rake"
 load "#{MRUBY_ROOT}/tools/mruby/mruby.rake"
 load "#{MRUBY_ROOT}/tools/mirb/mirb.rake"
