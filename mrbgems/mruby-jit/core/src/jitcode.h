@@ -17,7 +17,7 @@ extern "C" {
 #include "mruby/variable.h"
 #include "mruby/proc.h"
 #include "mruby/class.h"
-#include "mruby/jit.h"
+#include "jit.h"
 
 void mrbjit_exec_send_c(mrb_state *, mrbjit_vmstatus *, 
 		      struct RProc *, struct RClass *);

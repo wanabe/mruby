@@ -37,7 +37,7 @@ typedef struct mrbjit_comp_info {
   patch "include/mruby/irep.h" do |f|
     line_after f, "#ifndef MRUBY_IREP_H", <<-EOP
 
-#include "mruby/jit.h"
+#include "jit.h"
 #include <setjmp.h>
     EOP
     line_before f, '} mrb_irep;', <<-EOP
