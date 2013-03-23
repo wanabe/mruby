@@ -45,7 +45,7 @@ module MRuby
         end
         MRuby::Build::COMMANDS.each do |command|
           val = @build.send(command)
-          val = val.clone unless command =~ /^cc$/
+          val = val.clone unless command =~ /^(cc|cxx)$/
           instance_variable_set("@#{command}", val)
         end
         @linker = LinkerConfig.new([], [], [], [])
