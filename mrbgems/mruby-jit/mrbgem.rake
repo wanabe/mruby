@@ -4,8 +4,8 @@ MRuby::Gem::Specification.new('mruby-jit') do |spec|
 end
 
 MRuby.each_target do |target|
-  patch "include/mruby.h" do |f|
-    line_after f, '#include "mruby/value.h"', <<-EOP
+  patch "include/mruby.h" do
+    line_after '#include "mruby/value.h"', <<-EOP
 
 static inline mrb_value
 mrb_cache_value(void *p)
@@ -17,8 +17,8 @@ mrb_cache_value(void *p)
   return v;
 }
     EOP
-    line_before f, '} mrb_callinfo;', "  void *jit_entry;\n"
-    line_before f, 'typedef struct mrb_state {', <<-EOP
+    line_before '} mrb_callinfo;', "  void *jit_entry;\n"
+    line_before 'typedef struct mrb_state {', <<-EOP
 typedef void * mrbjit_code_area;
 typedef struct mrbjit_comp_info {
   mrb_code *prev_pc;
@@ -28,19 +28,19 @@ typedef struct mrbjit_comp_info {
 } mrbjit_comp_info;
 
     EOP
-    line_before f, '} mrb_state;',<<-EOP
+    line_before '} mrb_state;',<<-EOP
   mrb_int is_method_cache_used;
   mrbjit_comp_info compile_info; /* JIT stuff */
     EOP
   end
 
-  patch "include/mruby/irep.h" do |f|
-    line_after f, "#ifndef MRUBY_IREP_H", <<-EOP
+  patch "include/mruby/irep.h" do
+    line_after "#ifndef MRUBY_IREP_H", <<-EOP
 
 #include "jit.h"
 #include <setjmp.h>
     EOP
-    line_before f, '} mrb_irep;', <<-EOP
+    line_before '} mrb_irep;', <<-EOP
 
   mrb_int is_method_cache_used;
 
@@ -48,7 +48,7 @@ typedef struct mrbjit_comp_info {
   int *prof_info;
   mrbjit_codetab *jit_entry_tab;
     EOP
-    line_after f, '} mrb_irep;', <<-EOP
+    line_after '} mrb_irep;', <<-EOP
 
 typedef struct mrbjit_vmstatus {
   mrb_irep **irep;
@@ -65,26 +65,26 @@ typedef struct mrbjit_vmstatus {
     EOP
   end
 
-  patch "include/mruby/value.h" do |f|
+  patch "include/mruby/value.h" do
     2.times do
-      line_before f, /(\s*)(MRB_TT_MAXDEFINE[^0-9]+)([0-9]+)/, nil, 1 do |d, m|
+      line_before /(\s*)(MRB_TT_MAXDEFINE[^0-9]+)([0-9]+)/, nil, 1 do |d, m|
         c = m[3].to_i
         <<-EOP
   MRB_TT_CACHE_VALUE, /*  #{c} */
   MRB_TT_MAXDEFINE    /*  #{c+1} */
         EOP
       end
-      f.gets
+      next_line
     end
   end
 
-  patch "include/mruby/variable.h" do |f|
-    line_before f, /^mrb_value mrb_iv_get\(/, "int mrbjit_iv_off(mrb_state *mrb, mrb_value obj, mrb_sym sym);\n"
+  patch "include/mruby/variable.h" do
+    line_before /^mrb_value mrb_iv_get\(/, "int mrbjit_iv_off(mrb_state *mrb, mrb_value obj, mrb_sym sym);\n"
   end
 
-  patch "src/class.c" do |f|
-    search f, /^mrb_define_method/
-    line_after f, "}", <<-EOP
+  patch "src/class.c" do
+    search /^mrb_define_method/
+    line_after "}", <<-EOP
 
 static void
 clear_method_cache(mrb_state *mrb)
@@ -112,8 +112,8 @@ clear_method_cache(mrb_state *mrb)
   }
 }
     EOP
-    search f, /^mrb_define_method_vm/
-    line_after f, "", <<-EOP
+    search /^mrb_define_method_vm/
+    line_after "", <<-EOP
   if (mrb->is_method_cache_used) {
     clear_method_cache(mrb);
     mrb->is_method_cache_used = 0;
@@ -122,9 +122,9 @@ clear_method_cache(mrb_state *mrb)
     EOP
   end
 
-  patch "src/codegen.c" do |f|
-    search f, /^new_lit\(/
-    line_after f, '}', <<-EOP
+  patch "src/codegen.c" do
+    search /^new_lit\(/
+    line_after '}', <<-EOP
 
 static inline int
 new_lit2(codegen_scope *s, mrb_value val)
@@ -137,8 +137,8 @@ new_lit2(codegen_scope *s, mrb_value val)
   return s->irep->plen++;
 }
     EOP
-    search f, /^new_sym\(/
-    line_after f, '}', <<-EOP
+    search /^new_sym\(/
+    line_after '}', <<-EOP
 
 static void
 genop_send(codegen_scope *s, mrb_code i)
@@ -164,12 +164,12 @@ genop_send_peep(codegen_scope *s, mrb_code i, int val)
     EOP
     ops = "SEND|SENDB|ADD|SUB|MUL|DIV|LT|LE|GT|GE|EQ|AREF|APOST|RANGE|ARRAY"
     ops << "|HASH"
-    each_line f, /genop(_peep)?\(s, MKOP_ABC\(OP_(#{ops}),/ do |m|
+    each_line /genop(_peep)?\(s, MKOP_ABC\(OP_(#{ops}),/ do |m|
       "genop_send#{m[1]}(s, MKOP_ABC(OP_#{m[2]},"
     end
-    search f, /^scope_finish/
-    line_after f, '{', "int i;\n"
-    line_before f, /^\s*irep->pool = /, <<-EOP
+    search /^scope_finish/
+    line_after '{', "int i;\n"
+    line_before /^\s*irep->pool = /, <<-EOP
   irep->jit_entry_tab = (mrbjit_codetab *)mrb_malloc(mrb, sizeof(mrbjit_codetab)*s->pc);
   for (i = 0; i < s->pc; i++) {
     irep->jit_entry_tab[i].size = 2;
@@ -180,40 +180,40 @@ genop_send_peep(codegen_scope *s, mrb_code i, int val)
     EOP
   end
 
-  patch "src/dump.c" do |f|
-    line_after f, /size \+= get_irep_header_size/, "  mrb_gc_arena_restore(mrb, 0);\n"
-    line_after f, /size \+= get_iseq_block_size/, "  mrb_gc_arena_restore(mrb, 0);\n"
-    line_after f, /size \+= get_pool_block_size/, "  mrb_gc_arena_restore(mrb, 0);\n"
-    line_after f, /size \+= get_syms_block_size/, "  mrb_gc_arena_restore(mrb, 0);\n"
-    line_after f, /buf \+= uint32_dump\(\(uint32_t\)irep->iseq/, "    mrb_gc_arena_restore(mrb, 0);\n"
-    search f, /^write_irep_record/
-    search f, /^\s*case DUMP_IREP_HEADER:/
-    line_after f, /^\s*}$/, "    mrb_gc_arena_restore(mrb, 0);\n"
+  patch "src/dump.c" do
+    line_after /size \+= get_irep_header_size/, "  mrb_gc_arena_restore(mrb, 0);\n"
+    line_after /size \+= get_iseq_block_size/, "  mrb_gc_arena_restore(mrb, 0);\n"
+    line_after /size \+= get_pool_block_size/, "  mrb_gc_arena_restore(mrb, 0);\n"
+    line_after /size \+= get_syms_block_size/, "  mrb_gc_arena_restore(mrb, 0);\n"
+    line_after /buf \+= uint32_dump\(\(uint32_t\)irep->iseq/, "    mrb_gc_arena_restore(mrb, 0);\n"
+    search /^write_irep_record/
+    search /^\s*case DUMP_IREP_HEADER:/
+    line_after /^\s*}$/, "    mrb_gc_arena_restore(mrb, 0);\n"
     [/^mrb_write_irep/, /^mrb_dump_irep/].each do |reg|
-      search f, reg
-      m = search f, /^(\s*)for \(irep_no=top;/
-      line_before f, /^#{m[1]}}$/, "#{m[1]}  mrb_gc_arena_restore(mrb, 0);\n"
+      search reg
+      m = search /^(\s*)for \(irep_no=top;/
+      line_before /^#{m[1]}}$/, "#{m[1]}  mrb_gc_arena_restore(mrb, 0);\n"
     end
   end
 
-  patch "src/gc.c" do |f|
-    search f, /^obj_free/
-    line_after f, "  case MRB_TT_FLOAT:", "  case MRB_TT_CACHE_VALUE:\n"
+  patch "src/gc.c" do
+    search /^obj_free/
+    line_after "  case MRB_TT_FLOAT:", "  case MRB_TT_CACHE_VALUE:\n"
   end
 
-  patch "src/init.c" do |f|
-    line_before f, "void mrb_init_mrblib(mrb_state*);", "void mrb_init_irep(mrb_state*);\n"
-    search f, /^mrb_init_core/
-    line_before f, "}", <<-EOP
+  patch "src/init.c" do
+    line_before "void mrb_init_mrblib(mrb_state*);", "void mrb_init_irep(mrb_state*);\n"
+    search /^mrb_init_core/
+    line_before "}", <<-EOP
 #ifdef ENABLE_IREP
   mrb_init_irep(mrb);
 #endif
     EOP
   end
 
-  patch "src/load.c" do |f|
-    search f, /^read_rite_irep_record/
-    line_before f, "  *len = src - recordStart;", <<-EOP
+  patch "src/load.c" do
+    search /^read_rite_irep_record/
+    line_before "  *len = src - recordStart;", <<-EOP
   // JIT Block
   irep->jit_entry_tab = (mrbjit_codetab *)mrb_calloc(mrb, 1, sizeof(mrbjit_codetab)*irep->ilen);
   for (i = 0; i < irep->ilen; i++) {

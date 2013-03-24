@@ -37,6 +37,49 @@ module MRuby
   end
   Toolchain.load
 
+  class Patch
+    def initialize(fname)
+      @fname = fname
+      @content = open(fname, "r") {|f| f.readlines}
+      @content.each {|l| l.chomp!}
+      @line = 0
+    end
+    def run(&b)
+      instance_eval(&b)
+      open(@fname, "w") {|f| f.puts @content}
+    end
+
+    def search(line)
+      @line += 1 until line === @content[@line]
+      $~
+    end
+
+    def line_after(pattern, patch)
+      search pattern
+      patch = patch.split("\n")
+      @content[@line + 1, 0] = patch
+      @line += patch.length + 1
+    end
+
+    def line_before(pattern, patch, delete = 0)
+      m = search pattern
+      patch = yield(patch, m) if block_given?
+      patch = patch.split("\n")
+      @content[@line, delete] = patch
+      @line += patch.length
+    end
+
+    def each_line(pattern, &b)
+      @content[@line..-1].each do |l|
+        l.gsub!(pattern) {b.call($~)}
+      end
+    end
+
+    def next_line
+      @line += 1
+    end
+  end
+
   class Build
     class << self
       attr_accessor :current
@@ -202,55 +245,12 @@ module MRuby
         dst = t.name
         FileUtils.mkdir_p File.dirname(dst)
         FileUtils.cp_r t.prerequisites.first, dst
-        File.open(dst, "r+", &b) if b
+        Patch.new(dst).run(&b) if b
       end
       return unless obj
       file obj => dst do |t|
         cc.run t.name, t.prerequisites.first, [], [dir]
       end
-    end
-
-    def search(f, line)
-      pos = f.pos
-      pos = f.pos until line === f.gets.chomp
-      f.pos = pos
-      $~
-    end
-
-    def line_after(f, line, patch)
-      search f, line
-      f.gets
-      pos = f.pos
-      rest = patch + f.read
-      f.pos = pos
-      f.print rest
-      f.pos = pos
-    end
-
-    def line_before(f, line, patch, delete = 0)
-      m = search f, line
-      pos = f.pos
-      patch = yield(patch, m) if block_given?
-      f.gets while (delete -= 1) >= 0
-      rest = f.read
-      f.pos = pos
-      f.print patch
-      pos2 = f.pos
-      f.print rest
-      f.pos = pos2
-    end
-
-    def each_line(f, line, &b)
-      pos = f.pos
-      lines = f.readlines
-      lines.each do |l|
-        l.gsub!(line) do
-          b.call($~)
-        end
-      end
-      f.pos = pos
-      f.print *lines
-      f.pos = pos
     end
   end # Build
 
