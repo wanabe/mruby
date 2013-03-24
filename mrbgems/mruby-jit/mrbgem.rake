@@ -121,4 +121,62 @@ clear_method_cache(mrb_state *mrb)
 
     EOP
   end
+
+  patch "src/codegen.c" do |f|
+    search f, /^new_lit\(/
+    line_after f, '}', <<-EOP
+
+static inline int
+new_lit2(codegen_scope *s, mrb_value val)
+{
+  if (s->irep->plen == s->pcapa) {
+    s->pcapa *= 2;
+    s->irep->pool = (mrb_value *)codegen_realloc(s, s->irep->pool, sizeof(mrb_value)*s->pcapa);
+  }
+  s->irep->pool[s->irep->plen] = val;
+  return s->irep->plen++;
+}
+    EOP
+    search f, /^new_sym\(/
+    line_after f, '}', <<-EOP
+
+static void
+genop_send(codegen_scope *s, mrb_code i)
+{
+  int off;
+
+  genop(s, i);
+  off = new_lit2(s, mrb_cache_value(0));
+  new_lit2(s, mrb_fixnum_value(1));
+  genop(s, MKOP_Bx(OP_NOP, off));
+}
+
+static void
+genop_send_peep(codegen_scope *s, mrb_code i, int val)
+{
+  int off;
+
+  genop_peep(s, i, val);
+  off = new_lit2(s, mrb_fixnum_value(1));
+  new_lit2(s, mrb_fixnum_value(1));
+  genop(s, MKOP_Bx(OP_NOP, off));
+}
+    EOP
+    ops = "SEND|SENDB|ADD|SUB|MUL|DIV|LT|LE|GT|GE|EQ|AREF|APOST|RANGE|ARRAY"
+    ops << "|HASH"
+    each_line f, /genop(_peep)?\(s, MKOP_ABC\(OP_(#{ops}),/ do |m|
+      "genop_send#{m[1]}(s, MKOP_ABC(OP_#{m[2]},"
+    end
+    search f, /^scope_finish/
+    line_after f, '{', "int i;\n"
+    line_before f, /^\s*irep->pool = /, <<-EOP
+  irep->jit_entry_tab = (mrbjit_codetab *)mrb_malloc(mrb, sizeof(mrbjit_codetab)*s->pc);
+  for (i = 0; i < s->pc; i++) {
+    irep->jit_entry_tab[i].size = 2;
+    irep->jit_entry_tab[i].body = 
+      (mrbjit_code_info *)mrb_calloc(mrb, 1, sizeof(mrbjit_code_info)*2);
+  }
+  irep->prof_info = (int *)mrb_calloc(mrb, 1, sizeof(int)*s->pc);
+    EOP
+  end
 end
