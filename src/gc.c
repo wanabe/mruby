@@ -475,7 +475,6 @@ obj_free(mrb_state *mrb, struct RBasic *obj)
   case MRB_TT_FIXNUM:
   case MRB_TT_SYMBOL:
   case MRB_TT_FLOAT:
-  case MRB_TT_CACHE_VALUE:
     /* cannot happen */
     return;
 

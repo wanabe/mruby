@@ -195,4 +195,9 @@ genop_send_peep(codegen_scope *s, mrb_code i, int val)
       line_before f, /^#{m[1]}}$/, "#{m[1]}  mrb_gc_arena_restore(mrb, 0);\n"
     end
   end
+
+  patch "src/gc.c" do |f|
+    search f, /^obj_free/
+    line_after f, "  case MRB_TT_FLOAT:", "  case MRB_TT_CACHE_VALUE:\n"
+  end
 end
