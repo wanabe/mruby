@@ -1,3 +1,6 @@
+[submodule "mruby-jit"]
+	path = mrbgems/mruby-jit
+	url = git://github.com/wanabe/mruby-jit.git
 [submodule "xbyak"]
 	path = xbyak
 	url = git://github.com/herumi/xbyak.git

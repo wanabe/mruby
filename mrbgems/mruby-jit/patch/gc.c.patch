@@ -1,2 +1,0 @@
-search /^obj_free/
-line_after "  case MRB_TT_FLOAT:", "  case MRB_TT_CACHE_VALUE:\n"
