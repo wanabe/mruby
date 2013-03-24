@@ -218,7 +218,8 @@ module MRuby
     end
 
     def line_after(f, line, patch)
-      nil while f.gets.chomp != line
+      search f, line
+      f.gets
       pos = f.pos
       rest = patch + f.read
       f.pos = pos

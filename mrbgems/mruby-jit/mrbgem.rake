@@ -179,4 +179,20 @@ genop_send_peep(codegen_scope *s, mrb_code i, int val)
   irep->prof_info = (int *)mrb_calloc(mrb, 1, sizeof(int)*s->pc);
     EOP
   end
+
+  patch "src/dump.c" do |f|
+    line_after f, /size \+= get_irep_header_size/, "  mrb_gc_arena_restore(mrb, 0);\n"
+    line_after f, /size \+= get_iseq_block_size/, "  mrb_gc_arena_restore(mrb, 0);\n"
+    line_after f, /size \+= get_pool_block_size/, "  mrb_gc_arena_restore(mrb, 0);\n"
+    line_after f, /size \+= get_syms_block_size/, "  mrb_gc_arena_restore(mrb, 0);\n"
+    line_after f, /buf \+= uint32_dump\(\(uint32_t\)irep->iseq/, "    mrb_gc_arena_restore(mrb, 0);\n"
+    search f, /^write_irep_record/
+    search f, /^\s*case DUMP_IREP_HEADER:/
+    line_after f, /^\s*}$/, "    mrb_gc_arena_restore(mrb, 0);\n"
+    [/^mrb_write_irep/, /^mrb_dump_irep/].each do |reg|
+      search f, reg
+      m = search f, /^(\s*)for \(irep_no=top;/
+      line_before f, /^#{m[1]}}$/, "#{m[1]}  mrb_gc_arena_restore(mrb, 0);\n"
+    end
+  end
 end
