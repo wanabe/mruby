@@ -19,4 +19,5 @@ MRuby.each_target do |target|
   patch "src/proc.c", "#{patch_dir}/proc.c.patch"
   patch "src/state.c", "#{patch_dir}/state.c.patch"
   patch "src/variable.c", "#{patch_dir}/variable.c.patch"
+  patch "src/vm.c", "#{patch_dir}/vm.c.patch"
 end

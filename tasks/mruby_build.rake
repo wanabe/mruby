@@ -51,9 +51,9 @@ module MRuby
       @fname = fname
       @content = open(fname, "r") {|f| f.readlines}
       @content.each {|l| l.chomp!}
-      @line = 0
     end
     def apply(patch)
+      @line = 0
       case patch
       when String
         instance_eval(open(patch, "r") {|f| f.read}, patch)
@@ -64,14 +64,17 @@ module MRuby
     end
 
     def search(line)
-      @line += 1 until line === @content[@line]
+      until line === @content[@line]
+        @line += 1
+        raise "can't find #{line}" unless @content[@line]
+      end
       $~
     end
 
-    def line_after(pattern, patch)
+    def line_after(pattern, patch, delete = 0)
       search pattern
       patch = patch.split("\n")
-      @content[@line + 1, 0] = patch
+      @content[@line + 1, delete] = patch
       @line += patch.length + 1
     end
 
@@ -81,6 +84,7 @@ module MRuby
       patch = patch.split("\n")
       @content[@line, delete] = patch
       @line += patch.length
+      m
     end
 
     def each_line(pattern, &b)
@@ -92,7 +96,7 @@ module MRuby
     def next_line
       @line += 1
     end
-  end
+  end # Patch
 
   class Build
     class << self
