@@ -238,6 +238,19 @@ module MRuby
       f.print rest
       f.pos = pos2
     end
+
+    def each_line(f, line, &b)
+      pos = f.pos
+      lines = f.readlines
+      lines.each do |l|
+        l.gsub!(line) do
+          b.call($~)
+        end
+      end
+      f.pos = pos
+      f.print *lines
+      f.pos = pos
+    end
   end # Build
 
   class CrossBuild < Build
