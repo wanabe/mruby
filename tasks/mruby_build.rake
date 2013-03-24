@@ -38,14 +38,20 @@ module MRuby
   Toolchain.load
 
   class Patch
-    def initialize(fname)
+    def initialize(fname, patch)
       @fname = fname
+      @patch = patch
       @content = open(fname, "r") {|f| f.readlines}
       @content.each {|l| l.chomp!}
       @line = 0
     end
-    def run(&b)
-      instance_eval(&b)
+    def run
+      case @patch
+      when String
+        instance_eval(open(@patch, "r") {|f| f.read}, @patch)
+      when Proc
+        instance_eval(&@patch)
+      end
       open(@fname, "w") {|f| f.puts @content}
     end
 
@@ -234,18 +240,20 @@ module MRuby
       puts
     end
 
-    def patch(file, &b)
+    def patch(file, patch = nil, &b)
       src = "#{root}/#{file}"
       dst = "#{build_dir}/#{file}"
       obj = objfile(dst.sub(/\.cc?$/, ""))
       dir = File.dirname(src)
+      src = [src, patch] if patch
+      patch = b if b
       task :patch => dst
       patchs << dst
       file dst => src do |t|
         dst = t.name
         FileUtils.mkdir_p File.dirname(dst)
         FileUtils.cp_r t.prerequisites.first, dst
-        Patch.new(dst).run(&b) if b
+        Patch.new(dst, patch).run
       end
       return unless obj
       file obj => dst do |t|
