@@ -77,8 +77,48 @@ typedef struct mrbjit_vmstatus {
       f.gets
     end
   end
+
   patch "include/mruby/variable.h" do |f|
     line_before f, /^mrb_value mrb_iv_get\(/, "int mrbjit_iv_off(mrb_state *mrb, mrb_value obj, mrb_sym sym);\n"
   end
-  patch "src/vm.c"
+
+  patch "src/class.c" do |f|
+    search f, /^mrb_define_method/
+    line_after f, "}", <<-EOP
+
+static void
+clear_method_cache(mrb_state *mrb)
+{
+  int i;
+  int j;
+  int ilen;
+  int plen;
+  mrb_irep *irep;
+  mrb_value *pool;
+  
+  ilen = mrb->irep_len;
+  for (i = 0; i < ilen; i++) {
+    irep = mrb->irep[i];
+    if (irep->is_method_cache_used) {
+      plen = irep->plen;
+      pool = irep->pool;
+      for (j = 0; j < plen; j++) {
+	if (mrb_tt(pool[j]) == MRB_TT_CACHE_VALUE) {
+	  pool[j].value.p = 0;
+	}
+      }
+      irep->is_method_cache_used = 0;
+    }
+  }
+}
+    EOP
+    search f, /^mrb_define_method_vm/
+    line_after f, "", <<-EOP
+  if (mrb->is_method_cache_used) {
+    clear_method_cache(mrb);
+    mrb->is_method_cache_used = 0;
+  }
+
+    EOP
+  end
 end

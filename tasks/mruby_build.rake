@@ -210,6 +210,13 @@ module MRuby
       end
     end
 
+    def search(f, line)
+      pos = f.pos
+      pos = f.pos until line === f.gets.chomp
+      f.pos = pos
+      $~
+    end
+
     def line_after(f, line, patch)
       nil while f.gets.chomp != line
       pos = f.pos
@@ -220,10 +227,9 @@ module MRuby
     end
 
     def line_before(f, line, patch, delete = 0)
+      m = search f, line
       pos = f.pos
-      pos = f.pos until line === f.gets.chomp
-      patch = yield(patch, $~) if block_given?
-      f.pos = pos
+      patch = yield(patch, m) if block_given?
       f.gets while (delete -= 1) >= 0
       rest = f.read
       f.pos = pos
