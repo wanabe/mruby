@@ -5,7 +5,6 @@ MRuby::Build.new do |conf|
   conf.linker.flags << (ENV['LDFLAGS'] || %w(-lm -m32))
   conf.linker.libraries << "stdc++"
   conf.cxx.flags = conf.cc.flags + %w(-fno-operator-names)
-  conf.cxx.include_paths << "#{root}/xbyak"
 
   # Use mrbgems
   # conf.gem 'examples/mrbgems/ruby_extension_example'
