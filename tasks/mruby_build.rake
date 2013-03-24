@@ -37,6 +37,67 @@ module MRuby
   end
   Toolchain.load
 
+  class Patch
+    @@table = {}
+    def self.[](src, dst)
+      if !@@table[dst]
+        FileUtils.mkdir_p File.dirname(dst)
+        FileUtils.cp src, dst
+        @@table[dst] = new(dst)
+      end
+      @@table[dst]
+    end
+    def initialize(fname)
+      @fname = fname
+      @content = open(fname, "r") {|f| f.readlines}
+      @content.each {|l| l.chomp!}
+    end
+    def apply(patch)
+      @line = 0
+      case patch
+      when String
+        instance_eval(open(patch, "r") {|f| f.read}, patch)
+      when Proc
+        instance_eval(&patch)
+      end
+      open(@fname, "w") {|f| f.puts @content}
+    end
+
+    def search(line)
+      until line === @content[@line]
+        @line += 1
+        raise "can't find #{line}" unless @content[@line]
+      end
+      $~
+    end
+
+    def line_after(pattern, patch, delete = 0)
+      search pattern
+      patch = patch.split("\n")
+      @content[@line + 1, delete] = patch
+      @line += patch.length + 1
+    end
+
+    def line_before(pattern, patch, delete = 0)
+      m = search pattern
+      patch = yield(patch, m) if block_given?
+      patch = patch.split("\n")
+      @content[@line, delete] = patch
+      @line += patch.length
+      m
+    end
+
+    def each_line(pattern, &b)
+      @content[@line..-1].each do |l|
+        l.gsub!(pattern) {b.call($~)}
+      end
+    end
+
+    def next_line
+      @line += 1
+    end
+  end # Patch
+
   class Build
     class << self
       attr_accessor :current
@@ -44,7 +105,7 @@ module MRuby
     include Rake::DSL
     include LoadGems
     attr_accessor :name, :bins, :exts, :file_separator
-    attr_reader :libmruby, :gems
+    attr_reader :libmruby, :libmruby_core, :gems, :patchs
 
     COMPILERS = %w(cc cxx objc asm)
     COMMANDS = COMPILERS + %w(linker archiver yacc gperf git exts mrbc)
@@ -75,7 +136,7 @@ module MRuby
         @mrbc = Command::Mrbc.new(self)
 
         @bins = %w(mruby mrbc mirb)
-        @gems, @libmruby = [], []
+        @gems, @libmruby, @libmruby_core, @patchs = [], [], [], []
         @build_mrbtest_lib_only = false
 
         MRuby.targets[@name] = self
@@ -190,6 +251,24 @@ module MRuby
       end
       puts "================================================"
       puts
+    end
+
+    def patch(file, patch = nil, &b)
+      src = "#{root}/#{file}"
+      dst = "#{build_dir}/#{file}"
+      obj = objfile(dst.sub(/\.cc?$/, ""))
+      dir = File.dirname(src)
+      src = [src, patch] if patch
+      patch = b if b
+      task :patch => dst
+      patchs << dst
+      file dst => src do |t|
+        Patch[t.prerequisites.first, t.name].apply(patch)
+      end
+      return unless obj
+      file obj => dst do |t|
+        cc.run t.name, t.prerequisites.first, [], [dir]
+      end
     end
   end # Build
 
