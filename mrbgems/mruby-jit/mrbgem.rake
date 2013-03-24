@@ -77,5 +77,8 @@ typedef struct mrbjit_vmstatus {
       f.gets
     end
   end
+  patch "include/mruby/variable.h" do |f|
+    line_before f, /^mrb_value mrb_iv_get\(/, "int mrbjit_iv_off(mrb_state *mrb, mrb_value obj, mrb_sym sym);\n"
+  end
   patch "src/vm.c"
 end
