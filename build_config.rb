@@ -1,17 +1,13 @@
 MRuby::Build.new do |conf|
   # load specific toolchain settings
   toolchain :gcc
-  conf.cc.flags << (ENV['CFLAGS'] || %w(-g -O3 -Wall -Werror-implicit-function-declaration -freg-struct-return -fomit-frame-pointer -m32))
-  conf.linker.flags << (ENV['LDFLAGS'] || %w(-lm -m32))
-  conf.linker.libraries << "stdc++"
-  conf.cxx.flags = conf.cc.flags + %w(-fno-operator-names)
 
   # Use mrbgems
   # conf.gem 'examples/mrbgems/ruby_extension_example'
   # conf.gem 'examples/mrbgems/c_extension_example' do |g|
   #   g.cc.flags << '-g' # append cflags in this gem
   # end
-  # conf.gem examples/mrbgems/c_and_ruby_extension_example'
+  # conf.gem 'examples/mrbgems/c_and_ruby_extension_example'
   # conf.gem :github => 'masuidrive/mrbgems-example', :branch => 'master'
   # conf.gem :git => 'git@github.com:masuidrive/mrbgems-example.git', :branch => 'master', :options => '-v'
 
