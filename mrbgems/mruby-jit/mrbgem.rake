@@ -17,4 +17,5 @@ MRuby.each_target do |target|
   patch "src/init.c", "#{patch_dir}/init.c.patch"
   patch "src/load.c", "#{patch_dir}/load.c.patch"
   patch "src/proc.c", "#{patch_dir}/proc.c.patch"
+  patch "src/state.c", "#{patch_dir}/state.c.patch"
 end

@@ -26,11 +26,6 @@ mrb_open_allocf(mrb_allocf f, void *ud)
   mrb->allocf = f;
   mrb->current_white_part = MRB_GC_WHITE_A;
 
-  mrb->compile_info.prev_pc = NULL;
-  mrb->compile_info.code_base = NULL;
-  mrb->compile_info.disable_jit = 0;
-  mrb->compile_info.nest_level = 0;
-
   mrb_init_heap(mrb);
   mrb_init_core(mrb);
   return mrb;
@@ -100,9 +95,6 @@ mrb_irep_free(mrb_state *mrb, struct mrb_irep *irep)
   mrb_free(mrb, irep->pool);
   mrb_free(mrb, irep->syms);
   mrb_free(mrb, irep->lines);
-  mrb_free(mrb, irep->prof_info);
-  mrb_free(mrb, irep->jit_entry_tab->body);
-  mrb_free(mrb, irep->jit_entry_tab);
   mrb_free(mrb, irep);
 }
 
