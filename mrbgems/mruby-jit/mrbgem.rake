@@ -200,4 +200,14 @@ genop_send_peep(codegen_scope *s, mrb_code i, int val)
     search f, /^obj_free/
     line_after f, "  case MRB_TT_FLOAT:", "  case MRB_TT_CACHE_VALUE:\n"
   end
+
+  patch "src/init.c" do |f|
+    line_before f, "void mrb_init_mrblib(mrb_state*);", "void mrb_init_irep(mrb_state*);\n"
+    search f, /^mrb_init_core/
+    line_before f, "}", <<-EOP
+#ifdef ENABLE_IREP
+  mrb_init_irep(mrb);
+#endif
+    EOP
+  end
 end
