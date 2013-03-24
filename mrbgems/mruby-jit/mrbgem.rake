@@ -65,5 +65,17 @@ typedef struct mrbjit_vmstatus {
     EOP
   end
 
+  patch "include/mruby/value.h" do |f|
+    2.times do
+      line_before f, /(\s*)(MRB_TT_MAXDEFINE[^0-9]+)([0-9]+)/, nil, 1 do |d, m|
+        c = m[3].to_i
+        <<-EOP
+  MRB_TT_CACHE_VALUE, /*  #{c} */
+  MRB_TT_MAXDEFINE    /*  #{c+1} */
+        EOP
+      end
+      f.gets
+    end
+  end
   patch "src/vm.c"
 end

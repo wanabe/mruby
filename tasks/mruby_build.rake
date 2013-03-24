@@ -219,13 +219,16 @@ module MRuby
       f.pos = pos
     end
 
-    def line_before(f, line, patch)
+    def line_before(f, line, patch, delete = 0)
       pos = f.pos
-      pos = f.pos while f.gets.chomp != line
+      pos = f.pos until line === f.gets.chomp
+      patch = yield(patch, $~) if block_given?
+      f.pos = pos
+      f.gets while (delete -= 1) >= 0
+      rest = f.read
+      f.pos = pos
+      f.print patch
       pos2 = f.pos
-      f.pos = pos
-      rest = patch + f.read
-      f.pos = pos
       f.print rest
       f.pos = pos2
     end
