@@ -48,7 +48,7 @@ def assert(str = 'Assertion failed', iso = '')
       $asserts.push(assertion_string('Error: ', str, iso, e))
       $kill_test += 1
       print('X')
-    end
+	end
   ensure
     $mrbtest_assert = nil
   end
@@ -119,18 +119,6 @@ def assert_raise(*exp)
     end
   end
   ret
-end
-
-def assert_equal(exp, act, msg = nil)
-  msg = "Expected to be equal" unless msg
-  diff = assertion_diff(exp, act)
-  assert_true(exp == act, msg, diff)
-end
-
-def assert_nil(obj, msg = nil)
-  msg = "Expected #{obj.inspect} to be nil" unless msg
-  diff = assertion_diff(nil, obj)
-  assert_true(obj.nil?, msg, diff)
 end
 
 ##
