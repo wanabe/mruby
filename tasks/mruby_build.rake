@@ -68,13 +68,21 @@ module MRuby
       open(@fname, "w") {|f| f.puts @content}
     end
 
-    def search(pattern, offset = 0)
+    def search(*patterns)
       line = @line
-      until pattern === @content[line]
-        line += 1
-        raise "can't find #{pattern}" unless @content[line]
+      patterns.each do |pattern|
+        case pattern
+        when Integer
+          line += pattern
+          raise "out of range" unless @content[line]
+        else
+          until pattern === @content[line]
+            line += 1
+            raise "can't find #{pattern}" unless @content[line]
+          end
+        end
       end
-      @line = line + offset
+      @line = line
       $~
     end
 
