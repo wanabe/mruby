@@ -47,6 +47,8 @@ module MRuby
       end
       @@table[dst]
     end
+
+    attr_reader :match
     def initialize(fname)
       @fname = fname
       @content = open(fname, "r") {|f| f.readlines}
@@ -83,25 +85,26 @@ module MRuby
         end
       end
       @line = line
-      $~
+      @match = $~
+      self
     end
 
-    def line_after(pattern, patch, delete = 0)
-      m = search pattern, 1
-      patch = yield(patch, m) if block_given?
+    def insert(patch, delete = 0)
+      patch = yield(patch, @match) if block_given?
       patch = patch.split("\n")
       @content[@line, delete] = patch
       @line += patch.length
-      m
+      self
     end
 
-    def line_before(pattern, patch, delete = 0)
-      m = search pattern
-      patch = yield(patch, m) if block_given?
-      patch = patch.split("\n")
-      @content[@line, delete] = patch
-      @line += patch.length
-      m
+    def line_after(pattern, patch, delete = 0, &b)
+      search pattern, 1
+      insert patch, delete, &b
+    end
+
+    def line_before(pattern, patch, delete = 0, &b)
+      search pattern
+      insert patch, delete, &b
     end
 
     def each_line(pattern, &b)
