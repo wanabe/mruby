@@ -63,19 +63,21 @@ module MRuby
       open(@fname, "w") {|f| f.puts @content}
     end
 
-    def search(line)
-      until line === @content[@line]
-        @line += 1
-        raise "can't find #{line}" unless @content[@line]
+    def search(pattern, offset = 0)
+      line = @line
+      until pattern === @content[line]
+        line += 1
+        raise "can't find #{pattern}" unless @content[line]
       end
+      @line = line + offset
       $~
     end
 
     def line_after(pattern, patch, delete = 0)
-      search pattern
+      search pattern, 1
       patch = patch.split("\n")
-      @content[@line + 1, delete] = patch
-      @line += patch.length + 1
+      @content[@line, delete] = patch
+      @line += patch.length
     end
 
     def line_before(pattern, patch, delete = 0)
