@@ -37,7 +37,7 @@ module MRuby
   end
   Toolchain.load
 
-  class Patch
+  class PatchTarget
     @@table = {}
     def self.[](src, dst)
       if !@@table[dst]
@@ -96,7 +96,7 @@ module MRuby
     def next_line
       @line += 1
     end
-  end # Patch
+  end # PatchTarget
 
   class Build
     class << self
@@ -253,6 +253,12 @@ module MRuby
       puts
     end
 
+    # usage:
+    #
+    #   patch "path/from/mruby/root", "path/to/patch"
+    #     or
+    #   patch "path/from/mruby/root", __FILE__ do ... end
+    #
     def patch(file, patch = nil, &b)
       src = "#{root}/#{file}"
       dst = "#{build_dir}/#{file}"
@@ -263,7 +269,7 @@ module MRuby
       task :patch => dst
       patchs << dst
       file dst => src do |t|
-        Patch[t.prerequisites.first, t.name].apply(patch)
+        PatchTarget[t.prerequisites.first, t.name].apply(patch)
       end
       return unless obj
       file obj => dst do |t|
