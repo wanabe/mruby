@@ -54,11 +54,16 @@ module MRuby
     end
     def apply(patch)
       @line = 0
-      case patch
-      when String
-        instance_eval(open(patch, "r") {|f| f.read}, patch)
-      when Proc
-        instance_eval(&patch)
+      begin
+        case patch
+        when String
+          instance_eval(open(patch, "r") {|f| f.read}, patch)
+        when Proc
+          instance_eval(&patch)
+        end
+      rescue Exception
+        open(@fname + ".err", "w") {|f| f.puts @content}
+        raise
       end
       open(@fname, "w") {|f| f.puts @content}
     end
