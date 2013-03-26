@@ -74,10 +74,12 @@ module MRuby
     end
 
     def line_after(pattern, patch, delete = 0)
-      search pattern, 1
+      m = search pattern, 1
+      patch = yield(patch, m) if block_given?
       patch = patch.split("\n")
       @content[@line, delete] = patch
       @line += patch.length
+      m
     end
 
     def line_before(pattern, patch, delete = 0)
