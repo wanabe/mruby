@@ -77,6 +77,8 @@ module MRuby
         when Integer
           line += pattern
           raise "out of range" unless @content[line]
+        when :mark
+          mark(line)
         else
           until pattern === @content[line]
             line += 1
@@ -89,32 +91,63 @@ module MRuby
       self
     end
 
-    def insert(patch, delete = 0)
+    def insert(patch)
       patch = yield(patch, @match) if block_given?
-      patch = patch.split("\n")
-      @content[@line, delete] = patch
+      patch = patch.scan(/.*\n|.+$/)
+      patch.each {|l| l.chomp!}
+      @content[@line, 0] = patch
       @line += patch.length
       self
     end
 
-    def line_after(pattern, patch, delete = 0, &b)
-      search pattern, 1
-      insert patch, delete, &b
+    def mark(line = @line)
+      @mark = line
+      self
     end
 
-    def line_before(pattern, patch, delete = 0, &b)
-      search pattern
-      insert patch, delete, &b
+    def count
+      @line - @mark + 1
     end
 
-    def each_line(pattern, &b)
-      @content[@line..-1].each do |l|
-        l.gsub!(pattern) {b.call($~)}
+    def rest
+      @mark = @line
+      @line = @content.length - 1
+      if block_given?
+        yield
+        @line = @mark
       end
     end
 
-    def next_line
-      @line += 1
+    def each(pattern = nil, &b)
+      @content[@mark, count].each_with_index do |l, i|
+        if !pattern || pattern === l
+          @line = i
+          @match = $~
+          yield l
+        end
+      end
+    end
+
+    def delete
+      @content[@mark, count] = []
+      @line = @mark
+      self
+    end
+
+    def change(patch = :proc)
+      case patch
+      when String
+        delete
+        insert patch
+      when nil
+        delete
+      when :proc
+        result = yield @content[@mark, count]
+        return if result == false
+        change result
+      else
+        raise
+      end
     end
   end # PatchTarget
 
