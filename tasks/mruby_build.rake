@@ -139,8 +139,6 @@ module MRuby
       when String
         delete
         insert patch
-      when nil
-        delete
       when :proc
         result = yield @content[@mark, count]
         return if result == false
