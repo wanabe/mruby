@@ -110,11 +110,11 @@ module MRuby
     end
 
     def rest
-      @mark = @line
+      @mark = line = @line
       @line = @content.length - 1
       if block_given?
         yield
-        @line = @mark
+        @line = line
       end
     end
 
