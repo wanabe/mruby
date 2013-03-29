@@ -119,6 +119,7 @@ module MRuby
     end
 
     def each(pattern = nil, &b)
+      line = @line
       @content[@mark, count].each_with_index do |l, i|
         if !pattern || pattern === l
           @line = @mark + i
@@ -126,6 +127,7 @@ module MRuby
           yield l
         end
       end
+      @line = line
     end
 
     def delete
