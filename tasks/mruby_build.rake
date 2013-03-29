@@ -70,7 +70,7 @@ module MRuby
       open(@fname, "w") {|f| f.puts @content}
     end
 
-    def search(*patterns)
+    def seek(*patterns)
       line = @line
       patterns.each do |pattern|
         case pattern
