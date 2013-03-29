@@ -134,18 +134,9 @@ module MRuby
       self
     end
 
-    def change(patch = :proc)
-      case patch
-      when String
-        delete
-        insert patch
-      when :proc
-        result = yield @content[@mark, count]
-        return if result == false
-        change result
-      else
-        raise
-      end
+    def change(patch)
+      delete
+      insert patch
     end
   end # PatchTarget
 
