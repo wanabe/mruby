@@ -17,7 +17,7 @@ MRuby::Toolchain.new(:androideabi) do |conf|
   DEFAULT_ANDROID_TARGET_PLATFORM = 'android-14'
   DEFAULT_GCC_VERSION   = '4.6'
   DEFAULT_CLANG_VERSION = '3.1'
-  GCC_COMMON_CFLAGS  = %W(-ffunction-sections -funwind-tables -fstack-protector)
+  GCC_COMMON_CFLAGS  = %W(-ffunction-sections -funwind-tables -fstack-protector -DSIZE_MAX=__SIZE_MAX__)
   GCC_COMMON_LDFLAGS = %W()
 
   # 'ANDROID_STANDALONE_TOOLCHAIN' or 'ANDROID_NDK_HOME' must be set.
