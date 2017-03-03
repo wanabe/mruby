@@ -1,6 +1,6 @@
 MRuby::Build.new do |conf|
   # load specific toolchain settings
-
+  toolchain :gcc
   # Gets set by the VS command prompts.
   if ENV['VisualStudioVersion'] || ENV['VSINSTALLDIR']
     toolchain :visualcpp
@@ -8,7 +8,12 @@ MRuby::Build.new do |conf|
     toolchain :gcc
   end
 
-  enable_debug
+  conf.cc.flags << (ENV['CFLAGS'] || %w(-g -O3 -Wall -Werror-implicit-function-declaration -freg-struct-return -fomit-frame-pointer))
+  conf.linker.flags << (ENV['LDFLAGS'] || %w(-lm))
+  conf.linker.libraries << "stdc++"
+  conf.cxx.flags = conf.cc.flags + %w(-fno-operator-names)
+  conf.cxx.include_paths << "#{root}/xbyak"
+  #enable_debug
 
   # Use mrbgems
   # conf.gem 'examples/mrbgems/ruby_extension_example'
@@ -20,7 +25,14 @@ MRuby::Build.new do |conf|
   # conf.gem :git => 'git@github.com:masuidrive/mrbgems-example.git', :branch => 'master', :options => '-v'
 
   # include the default GEMs
+  #conf.gem '../mruby-pp'
+  #conf.gem '../mruby-meta-circular'
+  #conf.gem '../mruby-pjson'
+  #conf.gem '../mruby-profiler'
   conf.gembox 'default'
+  conf.gem 'mrbgems/mruby-mmm'
+  conf.gem 'mrbgems/mruby-parray'
+
   # C compiler settings
   # conf.cc do |cc|
   #   cc.command = ENV['CC'] || 'gcc'
@@ -74,7 +86,7 @@ MRuby::Build.new do |conf|
   #   exts.executable = '' # '.exe' if Windows
   #   exts.library = '.a'
   # end
-
+ 
   # file separetor
   # conf.file_separator = '/'
 
@@ -103,6 +115,11 @@ MRuby::Build.new('host-debug') do |conf|
   # Generate mruby debugger command (require mruby-eval)
   conf.gem :core => "mruby-bin-debugger"
 
+  conf.cc.flags << (ENV['CFLAGS'] || %w(-g -O3 -Wall -Werror-implicit-function-declaration -freg-struct-return -fomit-frame-pointer -m32))
+  conf.linker.flags << (ENV['LDFLAGS'] || %w(-lm -m32))
+  conf.linker.libraries << "stdc++"
+  conf.cxx.flags = conf.cc.flags + %w(-fno-operator-names)
+  conf.cxx.include_paths << "#{root}/xbyak"
   # bintest
   # conf.enable_bintest
 end
@@ -118,17 +135,26 @@ MRuby::Build.new('test') do |conf|
   enable_debug
   conf.enable_bintest
   conf.enable_test
+  conf.cc.flags << (ENV['CFLAGS'] || %w(-g -O3 -Wall -Werror-implicit-function-declaration -freg-struct-return -fomit-frame-pointer -m32))
+  conf.linker.flags << (ENV['LDFLAGS'] || %w(-lm -m32))
+  conf.linker.libraries << "stdc++"
+  conf.cxx.flags = conf.cc.flags + %w(-fno-operator-names)
+  conf.cxx.include_paths << "#{root}/xbyak"
 
   conf.gembox 'default'
 end
 
 MRuby::Build.new('bench') do |conf|
+  toolchain :gcc
+
+  conf.cc.flags << %w(-g -O3 -Wall -Werror-implicit-function-declaration -freg-struct-return -fomit-frame-pointer -m32)
+  conf.cxx.flags = conf.cc.flags + %w(-fno-operator-names)
+  conf.cxx.include_paths << "#{root}/xbyak"
+  conf.linker.flags << (ENV['LDFLAGS'] || %w(-lm -m32))
+  conf.linker.libraries << "stdc++"
   # Gets set by the VS command prompts.
   if ENV['VisualStudioVersion'] || ENV['VSINSTALLDIR']
     toolchain :visualcpp
-  else
-    toolchain :gcc
-    conf.cc.flags << '-O3'
   end
 
   conf.gembox 'default'
