@@ -189,7 +189,9 @@ MRB_API mrb_value mrb_check_array_type(mrb_state *mrb, mrb_value self);
  * @param item The item to unshift.
  */
 MRB_API mrb_value mrb_ary_unshift(mrb_state *mrb, mrb_value self, mrb_value item);
-MRB_API mrb_value mrb_ary_entry(mrb_value ary, mrb_int offset);
+
+MRB_API mrb_value mrb_ary_entry2(mrb_state *mrb, mrb_value ary, mrb_int offset);
+#define mrb_ary_entry(ary, offset) mrb_ary_entry2(mrb, ary, offset)
 
 /*
  * Shifts the first element from the array.
@@ -248,13 +250,15 @@ mrb_ary_len(mrb_state *mrb, mrb_value ary)
 }
 
 static inline mrb_value
-ary_elt(mrb_value ary, mrb_int offset)
+ary_elt2(mrb_state *mrb, mrb_value ary, mrb_int offset)
 {
   if (offset < 0 || RARRAY_LEN(ary) <= offset) {
     return mrb_nil_value();
   }
   return RARRAY_PTR(ary)[offset];
 }
+
+#define ary_elt(ary, offset) ary_elt2(mrb, ary, offset)
 
 MRB_END_DECL
 

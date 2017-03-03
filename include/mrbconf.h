@@ -18,7 +18,7 @@
 //#define MRB_INT64
 
 /* represent mrb_value in boxed double; conflict with MRB_USE_FLOAT */
-//#define MRB_NAN_BOXING
+#define MRB_NAN_BOXING
 
 /* define on big endian machines; used by MRB_NAN_BOXING */
 //#define MRB_ENDIAN_BIG
@@ -36,7 +36,7 @@
 //#define MRB_HEAP_PAGE_SIZE 1024
 
 /* use segmented list for IV table */
-//#define MRB_USE_IV_SEGLIST
+#define MRB_USE_IV_SEGLIST
 
 /* initial size for IV khash; ignored when MRB_USE_IV_SEGLIST is set */
 //#define MRB_IVHASH_INIT_SIZE 8

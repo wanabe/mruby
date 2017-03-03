@@ -14,6 +14,21 @@
  */
 MRB_BEGIN_DECL
 
+#ifdef MRB_USE_IV_SEGLIST
+
+#ifndef MRB_SEGMENT_SIZE
+#define MRB_SEGMENT_SIZE 32
+#endif
+
+typedef struct segment
+{
+  mrb_value val[MRB_SEGMENT_SIZE];
+  mrb_sym key[MRB_SEGMENT_SIZE];
+  struct segment *next;
+} segment;
+
+#endif
+
 typedef struct global_variable {
   int   counter;
   mrb_value *data;
@@ -42,6 +57,7 @@ MRB_API void mrb_const_set(mrb_state*, mrb_value, mrb_sym, mrb_value);
 MRB_API mrb_bool mrb_const_defined(mrb_state*, mrb_value, mrb_sym);
 MRB_API void mrb_const_remove(mrb_state*, mrb_value, mrb_sym);
 
+int mrbjit_iv_off(mrb_state *mrb, mrb_value obj, mrb_sym sym);
 MRB_API mrb_bool mrb_iv_p(mrb_state *mrb, mrb_sym sym);
 MRB_API void mrb_iv_check(mrb_state *mrb, mrb_sym sym);
 MRB_API mrb_value mrb_obj_iv_get(mrb_state *mrb, struct RObject *obj, mrb_sym sym);

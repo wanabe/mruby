@@ -65,23 +65,97 @@ struct mrb_state;
  */
 typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t, void *ud);
 
+#define MRBJIT
+
+#ifndef MRB_GC_ARENA_SIZE
+#define MRB_GC_ARENA_SIZE 100
+#endif
+
 #ifndef MRB_FIXED_STATE_ATEXIT_STACK_SIZE
 #define MRB_FIXED_STATE_ATEXIT_STACK_SIZE 5
 #endif
 
+typedef void * mrbjit_code_area;
+
+enum mrbjit_regplace {
+  MRBJIT_REG_MEMORY = 0,
+  MRBJIT_REG_IMMIDATE,
+  MRBJIT_REG_AL,
+  MRBJIT_REG_EAX,
+  MRBJIT_REG_EDX,
+  MRBJIT_REG_XMM0,
+  MRBJIT_REG_XMM1,
+  MRBJIT_REG_XMM2,
+  MRBJIT_REG_XMM3,
+  MRBJIT_REG_XMM4,
+  MRBJIT_REG_XMM5,
+  MRBJIT_REG_XMM6,
+  MRBJIT_REG_XMM7,
+  
+  MRBJIT_REG_VMREG0,
+  MRBJIT_REG_VMREG1,
+  MRBJIT_REG_VMREG2,
+  MRBJIT_REG_VMREG3,
+  MRBJIT_REG_VMREG4,
+  MRBJIT_REG_VMREG5,
+  MRBJIT_REG_VMREG6,
+  MRBJIT_REG_VMREG7,
+  MRBJIT_REG_VMREGMAX,
+  /* Don't add REG type except VMREG */
+};
+
+typedef struct mrbjit_reginfo {
+  enum mrb_vtype type;
+  struct RClass *klass;
+  enum mrbjit_regplace regplace;
+  int constp;
+  int unboxedp;
+  mrb_value value;
+} mrbjit_reginfo;
+
+typedef struct mrbjit_code_info {
+  mrbjit_code_area code_base;
+  mrb_code *prev_pc;
+  mrb_code *caller_pc;
+  uint16_t method_arg_ver;
+  void *(*entry)();
+  const void *patch_pos;
+  mrbjit_reginfo *reginfo;	/* For Local assignment */
+  int used;
+} mrbjit_code_info;
+
+typedef struct mrbjit_comp_info {
+  mrbjit_code_area code_base;
+  int disable_jit;
+  int force_compile;
+  int nest_level;
+  int ignor_inst_cnt;
+} mrbjit_comp_info;
+
 typedef struct {
-  mrb_sym mid;
+  void *jit_entry;
+  mrb_code *pc;                 /* return address */
   struct RProc *proc;
   mrb_value *stackent;
   int nregs;
   int ridx;
   int eidx;
   struct REnv *env;
-  mrb_code *pc;                 /* return address */
   mrb_code *err;                /* error position */
   int argc;
   int acc;
+  mrb_sym mid;
   struct RClass *target_class;
+
+  mrb_code *prev_pc;
+  int16_t prev_tentry_offset;
+  uint16_t method_arg_ver;	/* for packking. not used. */
+
+#if defined(__i386__) || defined(__CYGWIN__)
+  void *dummy[1];
+#elif defined(__x86_64__)
+  void *dummy[3];
+#endif
 } mrb_callinfo;
 
 enum mrb_fiber_state {
@@ -99,8 +173,12 @@ struct mrb_context {
   mrb_value *stack;                       /* stack of virtual machine */
   mrb_value *stbase, *stend;
 
+  struct LocalProc *proc_pool;
+  struct LocalProc *proc_pool_base;
+  size_t proc_pool_capa;
+
   mrb_callinfo *ci;
-  mrb_callinfo *cibase, *ciend;
+  mrb_callinfo *cibase, *ciend, *cibase_org;
 
   mrb_code **rescue;                      /* exception handler stack */
   int rsize;
@@ -112,6 +190,13 @@ struct mrb_context {
   struct RFiber *fib;
 };
 
+enum gc_state {
+  GC_STATE_ROOT = 0,
+  GC_STATE_MARK,
+  GC_STATE_SWEEP
+};
+
+struct mrb_irep;
 struct mrb_jmpbuf;
 
 typedef struct {
@@ -184,7 +269,9 @@ typedef struct mrb_state {
   struct RClass *eStandardError_class;
   struct RObject *nomem_err;              /* pre-allocated NoMemoryError */
 
+  mrb_int is_method_cache_used;
   void *ud; /* auxiliary data */
+  mrbjit_comp_info compile_info; /* JIT stuff */
 
 #ifdef MRB_FIXED_STATE_ATEXIT_STACK
   mrb_atexit_func atexit_stack[MRB_FIXED_STATE_ATEXIT_STACK_SIZE];
@@ -192,10 +279,15 @@ typedef struct mrb_state {
   mrb_atexit_func *atexit_stack;
 #endif
   mrb_int atexit_stack_len;
+
+  void *vmstatus;
+
+  FILE *logfp;
 } mrb_state;
 
 
 typedef mrb_value (*mrb_func_t)(mrb_state *mrb, mrb_value);
+typedef mrb_value (*mrbjit_prim_func_t)(mrb_state *mrb, mrb_value, void *, void *);
 
 /**
  * Defines a new class.
@@ -677,6 +769,10 @@ MRB_API mrb_value mrb_check_to_integer(mrb_state *mrb, mrb_value val, const char
  * @return [mrb_bool] A boolean value.
  */
 MRB_API mrb_bool mrb_obj_respond_to(mrb_state *mrb, struct RClass* c, mrb_sym mid);
+MRB_API struct RClass * mrb_define_class_under(mrb_state *mrb, struct RClass *outer, const char *name, struct RClass *super);
+MRB_API struct RClass * mrb_define_module_under(mrb_state *mrb, struct RClass *outer, const char *name);
+void mrbjit_define_primitive(mrb_state *mrb, struct RClass *c, const char *name, mrbjit_prim_func_t func);
+void mrbjit_define_class_primitive(mrb_state *mrb, struct RClass *c, const char *name, mrbjit_prim_func_t func);
 
 /**
  * Defines a new class under a given module
@@ -981,7 +1077,7 @@ MRB_API mrb_value mrb_vm_exec(mrb_state*, struct RProc*, mrb_code*);
 #define mrb_context_run(m,p,s,k) mrb_vm_run((m),(p),(s),(k))
 
 MRB_API void mrb_p(mrb_state*, mrb_value);
-MRB_API mrb_int mrb_obj_id(mrb_value obj);
+MRB_API mrb_int mrb_obj_id(mrb_state *,mrb_value obj);
 MRB_API mrb_sym mrb_obj_to_sym(mrb_state *mrb, mrb_value name);
 
 MRB_API mrb_bool mrb_obj_eq(mrb_state*, mrb_value, mrb_value);

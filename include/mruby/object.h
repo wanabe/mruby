@@ -22,9 +22,16 @@ struct RBasic {
 };
 #define mrb_basic_ptr(v) ((struct RBasic*)(mrb_ptr(v)))
 
+/* Instance variable table structure */
+typedef struct iv_tbl {
+  struct segment *rootseg;
+  size_t last_len;
+} iv_tbl;
+
 struct RObject {
   MRB_OBJECT_HEADER;
   struct iv_tbl *iv;
+  struct iv_tbl ivent;
 };
 #define mrb_obj_ptr(v)   ((struct RObject*)(mrb_ptr(v)))
 

@@ -27,17 +27,17 @@ struct RIstruct {
 #define RISTRUCT(obj)         ((struct RIstruct*)(mrb_ptr(obj)))
 #define ISTRUCT_PTR(obj)      (RISTRUCT(obj)->inline_data)
 
-MRB_INLINE mrb_int mrb_istruct_size()
+MRB_INLINE mrb_int mrb_istruct_size(mrb_state *mrb)
 {
   return ISTRUCT_DATA_SIZE;
 }
 
-MRB_INLINE void* mrb_istruct_ptr(mrb_value object)
+MRB_INLINE void* mrb_istruct_ptr(mrb_state *mrb, mrb_value object)
 {
   return ISTRUCT_PTR(object);
 }
 
-MRB_INLINE void mrb_istruct_copy(mrb_value dest, mrb_value src)
+MRB_INLINE void mrb_istruct_copy(mrb_state *mrb, mrb_value dest, mrb_value src)
 {
   memcpy(ISTRUCT_PTR(dest), ISTRUCT_PTR(src), ISTRUCT_DATA_SIZE);
 }

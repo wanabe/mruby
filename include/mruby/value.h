@@ -93,7 +93,7 @@ static const unsigned int IEEE754_INFINITY_BITS_SINGLE = 0x7F800000;
 #endif
 
 enum mrb_vtype {
-  MRB_TT_FALSE = 0,   /*   0 */
+  MRB_TT_FALSE = 1,   /*   0 */
   MRB_TT_FREE,        /*   1 */
   MRB_TT_TRUE,        /*   2 */
   MRB_TT_FIXNUM,      /*   3 */
@@ -117,7 +117,8 @@ enum mrb_vtype {
   MRB_TT_DATA,        /*  21 */
   MRB_TT_FIBER,       /*  22 */
   MRB_TT_ISTRUCT,     /*  23 */
-  MRB_TT_MAXDEFINE    /*  24 */
+  MRB_TT_CACHE_VALUE, /*  24 */
+  MRB_TT_MAXDEFINE    /*  25 */
 };
 
 #include <mruby/object.h>
@@ -194,6 +195,7 @@ mrb_cptr_value(struct mrb_state *mrb, void *p)
 MRB_INLINE mrb_value mrb_fixnum_value(mrb_int i)
 {
   mrb_value v;
+  struct mrb_state *mrb = NULL;
   SET_INT_VALUE(v, i);
   return v;
 }
@@ -202,17 +204,19 @@ static inline mrb_value
 mrb_symbol_value(mrb_sym i)
 {
   mrb_value v;
+  struct mrb_state *mrb = NULL;
   SET_SYM_VALUE(v, i);
   return v;
 }
 
 static inline mrb_value
-mrb_obj_value(void *p)
+mrb_obj_value2(struct mrb_state *mrb, void *p)
 {
   mrb_value v;
   SET_OBJ_VALUE(v, (struct RBasic*)p);
   return v;
 }
+#define mrb_obj_value(p) mrb_obj_value2(mrb, (p))
 
 
 /*
@@ -224,6 +228,7 @@ mrb_obj_value(void *p)
 MRB_INLINE mrb_value mrb_nil_value(void)
 {
   mrb_value v;
+  struct mrb_state *mrb = NULL;
   SET_NIL_VALUE(v);
   return v;
 }
@@ -234,6 +239,7 @@ MRB_INLINE mrb_value mrb_nil_value(void)
 MRB_INLINE mrb_value mrb_false_value(void)
 {
   mrb_value v;
+  struct mrb_state *mrb = NULL;
   SET_FALSE_VALUE(v);
   return v;
 }
@@ -244,6 +250,7 @@ MRB_INLINE mrb_value mrb_false_value(void)
 MRB_INLINE mrb_value mrb_true_value(void)
 {
   mrb_value v;
+  struct mrb_state *mrb = NULL;
   SET_TRUE_VALUE(v);
   return v;
 }
@@ -252,6 +259,7 @@ static inline mrb_value
 mrb_bool_value(mrb_bool boolean)
 {
   mrb_value v;
+  struct mrb_state *mrb = NULL;
   SET_BOOL_VALUE(v, boolean);
   return v;
 }
@@ -260,6 +268,7 @@ static inline mrb_value
 mrb_undef_value(void)
 {
   mrb_value v;
+  struct mrb_state *mrb = NULL;
   SET_UNDEF_VALUE(v);
   return v;
 }

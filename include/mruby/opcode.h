@@ -7,6 +7,8 @@
 #ifndef MRUBY_OPCODE_H
 #define MRUBY_OPCODE_H
 
+#define CALL_MAXARGS 127
+
 #define MAXARG_Bx        (0xffff)
 #define MAXARG_sBx       (MAXARG_Bx>>1)         /* 'sBx' is signed */
 

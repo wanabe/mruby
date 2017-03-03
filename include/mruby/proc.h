@@ -39,6 +39,11 @@ struct RProc {
   struct REnv *env;
 };
 
+struct LocalProc {
+  struct RProc proc;
+  struct REnv env;
+};
+
 /* aspec access */
 #define MRB_ASPEC_REQ(a)          (((a) >> 18) & 0x1f)
 #define MRB_ASPEC_OPT(a)          (((a) >> 13) & 0x1f)
@@ -59,7 +64,8 @@ struct RProc *mrb_proc_new(mrb_state*, mrb_irep*);
 struct RProc *mrb_closure_new(mrb_state*, mrb_irep*);
 MRB_API struct RProc *mrb_proc_new_cfunc(mrb_state*, mrb_func_t);
 MRB_API struct RProc *mrb_closure_new_cfunc(mrb_state *mrb, mrb_func_t func, int nlocals);
-void mrb_proc_copy(struct RProc *a, struct RProc *b);
+MRB_API void mrb_proc_copy(struct RProc *a, struct RProc *b);
+struct RProc * mrbjit_get_local_proc(mrb_state *mrb, mrb_irep *mirep);
 
 /* implementation of #send method */
 MRB_API mrb_value mrb_f_send(mrb_state *mrb, mrb_value self);
