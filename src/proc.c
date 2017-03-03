@@ -68,6 +68,7 @@ mrb_closure_new(mrb_state *mrb, mrb_irep *irep)
 {
   struct RProc *p = mrb_proc_new(mrb, irep);
 
+  irep->block_lambda = 1;
   closure_setup(mrb, p, mrb->c->ci->proc->body.irep->nlocals);
   return p;
 }
@@ -261,11 +262,23 @@ mrb_init_proc(mrb_state *mrb)
   struct RProc *m;
   mrb_irep *call_irep = (mrb_irep *)mrb_malloc(mrb, sizeof(mrb_irep));
   static const mrb_irep mrb_irep_zero = { 0 };
+  mrbjit_code_info *cinfo;
+  int i;
 
   *call_irep = mrb_irep_zero;
   call_irep->flags = MRB_ISEQ_NO_FREE;
   call_irep->iseq = call_iseq;
   call_irep->ilen = 1;
+  call_irep->jit_entry_tab = (mrbjit_codetab *)mrb_calloc(mrb, 2, sizeof(mrbjit_codetab));
+  for (i = 0; i < 2; i++) {
+    call_irep->jit_entry_tab[i].size = 16;
+    cinfo = (mrbjit_code_info *)mrb_calloc(mrb, 16, sizeof(mrbjit_code_info));
+    call_irep->jit_entry_tab[i].body = cinfo;
+  }
+  call_irep->prof_info = (int *)mrb_calloc(mrb, 2, sizeof(int));
+  call_irep->method_kind = NORMAL;
+  call_irep->simple_lambda = 1;
+  call_irep->proc_obj = NULL;
 
   mrb_define_method(mrb, mrb->proc_class, "initialize", mrb_proc_initialize, MRB_ARGS_NONE());
   mrb_define_method(mrb, mrb->proc_class, "initialize_copy", mrb_proc_init_copy, MRB_ARGS_REQ(1));

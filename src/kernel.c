@@ -13,6 +13,8 @@
 #include <mruby/error.h>
 #include <mruby/istruct.h>
 
+#include "mruby/primitive.h"
+
 typedef enum {
   NOEX_PUBLIC    = 0x00,
   NOEX_NOSUPER   = 0x01,
@@ -146,7 +148,7 @@ mrb_equal_m(mrb_state *mrb, mrb_value self)
 static mrb_value
 mrb_obj_id_m(mrb_state *mrb, mrb_value self)
 {
-  return mrb_fixnum_value(mrb_obj_id(self));
+  return mrb_fixnum_value(mrb_obj_id(mrb, self));
 }
 
 /* 15.3.1.2.2  */
@@ -303,7 +305,7 @@ init_copy(mrb_state *mrb, mrb_value dest, mrb_value obj)
       mrb_iv_copy(mrb, dest, obj);
       break;
     case MRB_TT_ISTRUCT:
-      mrb_istruct_copy(dest, obj);
+      mrb_istruct_copy(mrb, dest, obj);
       break;
 
     default:
@@ -463,7 +465,7 @@ mrb_obj_extend_m(mrb_state *mrb, mrb_value self)
 MRB_API mrb_value
 mrb_obj_hash(mrb_state *mrb, mrb_value self)
 {
-  return mrb_fixnum_value(mrb_obj_id(self));
+  return mrb_fixnum_value(mrb_obj_id(mrb, self));
 }
 
 /* 15.3.1.3.16 */
@@ -1112,7 +1114,11 @@ mrb_init_kernel(mrb_state *mrb)
 
   mrb_define_method(mrb, krn, "==",                         mrb_obj_equal_m,                 MRB_ARGS_REQ(1));    /* 15.3.1.3.1  */
   mrb_define_method(mrb, krn, "!=",                         mrb_obj_not_equal_m,             MRB_ARGS_REQ(1));
+  mrbjit_define_primitive(mrb, krn, "!=", mrbjit_prim_obj_not_equal_m);
+
   mrb_define_method(mrb, krn, "===",                        mrb_equal_m,                     MRB_ARGS_REQ(1));    /* 15.3.1.3.2  */
+  //  mrbjit_define_primitive(mrb, krn, "===", mrbjit_prim_kernel_equal);
+
   mrb_define_method(mrb, krn, "__id__",                     mrb_obj_id_m,                    MRB_ARGS_NONE());    /* 15.3.1.3.3  */
   mrb_define_method(mrb, krn, "__send__",                   mrb_f_send,                      MRB_ARGS_ANY());     /* 15.3.1.3.4  */
   mrb_define_method(mrb, krn, "block_given?",               mrb_f_block_given_p_m,           MRB_ARGS_NONE());    /* 15.3.1.3.6  */

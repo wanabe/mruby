@@ -14,6 +14,8 @@
 #include <mruby/numeric.h>
 #include <mruby/string.h>
 
+#include "mruby/primitive.h"
+
 #ifdef MRB_USE_FLOAT
 #define floor(f) floorf(f)
 #define ceil(f) ceilf(f)
@@ -909,6 +911,17 @@ fix_rshift(mrb_state *mrb, mrb_value x)
   return rshift(val, width);
 }
 
+static mrb_value
+fix_bitfetch(mrb_state *mrb, mrb_value x)
+{
+  mrb_int pos, val;
+
+  fix_shift_get_width(mrb, &pos);
+
+  val = mrb_fixnum(x);
+  return mrb_fixnum_value((val >> pos) & 1);
+}
+
 /* 15.2.8.3.23 */
 /*
  *  call-seq:
@@ -1164,6 +1177,9 @@ mrb_init_numeric(mrb_state *mrb)
   mrb_define_method(mrb, numeric, "/",        num_div,        MRB_ARGS_REQ(1));  /* 15.2.8.3.4  */
   mrb_define_method(mrb, numeric, "quo",      num_div,        MRB_ARGS_REQ(1));  /* 15.2.7.4.5 (x) */
   mrb_define_method(mrb, numeric, "<=>",      num_cmp,        MRB_ARGS_REQ(1));  /* 15.2.9.3.6  */
+  mrbjit_define_primitive(mrb, numeric, "<=>", mrbjit_prim_num_cmp);
+
+  mrbjit_define_primitive(mrb, numeric, "-@", mrbjit_prim_numeric_minus_at);
 
   /* Integer Class */
   integer = mrb_define_class(mrb, "Integer",  numeric);                          /* 15.2.8 */
@@ -1177,16 +1193,28 @@ mrb_init_numeric(mrb_state *mrb)
   mrb_define_method(mrb, fixnum,  "-",        fix_minus,         MRB_ARGS_REQ(1)); /* 15.2.8.3.2  */
   mrb_define_method(mrb, fixnum,  "*",        fix_mul,           MRB_ARGS_REQ(1)); /* 15.2.8.3.3  */
   mrb_define_method(mrb, fixnum,  "%",        fix_mod,           MRB_ARGS_REQ(1)); /* 15.2.8.3.5  */
+  mrbjit_define_primitive(mrb, fixnum, "%", mrbjit_prim_fix_mod);
+
   mrb_define_method(mrb, fixnum,  "==",       fix_equal,         MRB_ARGS_REQ(1)); /* 15.2.8.3.7  */
   mrb_define_method(mrb, fixnum,  "~",        fix_rev,           MRB_ARGS_NONE()); /* 15.2.8.3.8  */
   mrb_define_method(mrb, fixnum,  "&",        fix_and,           MRB_ARGS_REQ(1)); /* 15.2.8.3.9  */
+  mrbjit_define_primitive(mrb, fixnum, "&", mrbjit_prim_fix_and);
   mrb_define_method(mrb, fixnum,  "|",        fix_or,            MRB_ARGS_REQ(1)); /* 15.2.8.3.10 */
+  mrbjit_define_primitive(mrb, fixnum, "|", mrbjit_prim_fix_or);
   mrb_define_method(mrb, fixnum,  "^",        fix_xor,           MRB_ARGS_REQ(1)); /* 15.2.8.3.11 */
   mrb_define_method(mrb, fixnum,  "<<",       fix_lshift,        MRB_ARGS_REQ(1)); /* 15.2.8.3.12 */
+  mrbjit_define_primitive(mrb, fixnum, "<<", mrbjit_prim_fix_lshift);
   mrb_define_method(mrb, fixnum,  ">>",       fix_rshift,        MRB_ARGS_REQ(1)); /* 15.2.8.3.13 */
+  mrbjit_define_primitive(mrb, fixnum, ">>", mrbjit_prim_fix_rshift);
+  mrb_define_method(mrb, fixnum,  "[]",       fix_bitfetch,        MRB_ARGS_REQ(1));
   mrb_define_method(mrb, fixnum,  "eql?",     fix_eql,           MRB_ARGS_REQ(1)); /* 15.2.8.3.16 */
   mrb_define_method(mrb, fixnum,  "hash",     flo_hash,          MRB_ARGS_NONE()); /* 15.2.8.3.18 */
+
+  mrbjit_define_primitive(mrb, fixnum, "succ", mrbjit_prim_fix_succ);
+
   mrb_define_method(mrb, fixnum,  "to_f",     fix_to_f,          MRB_ARGS_NONE()); /* 15.2.8.3.23 */
+  mrbjit_define_primitive(mrb, fixnum, "to_f", mrbjit_prim_fix_to_f);
+
   mrb_define_method(mrb, fixnum,  "to_s",     fix_to_s,          MRB_ARGS_NONE()); /* 15.2.8.3.25 */
   mrb_define_method(mrb, fixnum,  "inspect",  fix_to_s,          MRB_ARGS_NONE());
   mrb_define_method(mrb, fixnum,  "divmod",   fix_divmod,        MRB_ARGS_REQ(1)); /* 15.2.8.3.30 (x) */

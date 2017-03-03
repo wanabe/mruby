@@ -610,6 +610,18 @@ gc_mark_children(mrb_state *mrb, mrb_gc *gc, struct RBasic *obj)
 
       mrb_gc_mark(mrb, (struct RBasic*)p->env);
       mrb_gc_mark(mrb, (struct RBasic*)p->target_class);
+      if (!MRB_PROC_CFUNC_P(p) && p->body.irep) {
+	int i;
+	mrb_irep *irep = p->body.irep;
+	for (i = 0; i < irep->plen; i++) {
+	  if (mrb_type(irep->pool[i]) == MRB_TT_STRING) {
+	    mrb_gc_mark(mrb, mrb_basic_ptr(irep->pool[i]));
+	  }
+	  if (mrb_type(irep->pool[i]) == MRB_TT_PROC) {
+	    mrb_gc_mark(mrb, mrb_basic_ptr(irep->pool[i]));
+	  }
+	}
+      }
     }
     break;
 
@@ -686,6 +698,7 @@ obj_free(mrb_state *mrb, struct RBasic *obj)
   case MRB_TT_TRUE:
   case MRB_TT_FIXNUM:
   case MRB_TT_SYMBOL:
+  case MRB_TT_CACHE_VALUE:
     /* cannot happen */
     return;
 
@@ -737,11 +750,13 @@ obj_free(mrb_state *mrb, struct RBasic *obj)
         while (ce <= ci) {
           struct REnv *e = ci->env;
           if (e && !is_dead(&mrb->gc, e) &&
-              e->tt == MRB_TT_ENV && MRB_ENV_STACK_SHARED_P(e)) {
+              e->tt == MRB_TT_ENV && MRB_ENV_STACK_SHARED_P(e) &&
+	      ci->proc->body.irep->shared_lambda != 1) {
             mrb_env_unshare(mrb, e);
           }
           ci--;
-        }
+	}
+        
         mrb_free_context(mrb, c);
       }
     }

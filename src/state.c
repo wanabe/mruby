@@ -35,16 +35,23 @@ mrb_open_core(mrb_allocf f, void *ud)
   if (mrb == NULL) return NULL;
 
   *mrb = mrb_state_zero;
+
   mrb->allocf_ud = ud;
   mrb->allocf = f;
   mrb->atexit_stack_len = 0;
 
+  mrb->compile_info.code_base = NULL;
+  mrb->compile_info.disable_jit = 0;
+  mrb->compile_info.force_compile = 0;
+  mrb->compile_info.nest_level = 0;
+  mrb->compile_info.ignor_inst_cnt = 0;
   mrb_gc_init(mrb, &mrb->gc);
   mrb->c = (struct mrb_context*)mrb_malloc(mrb, sizeof(struct mrb_context));
   *mrb->c = mrb_context_zero;
   mrb->root_c = mrb->c;
 
   mrb_init_core(mrb);
+  mrb->vmstatus = NULL;
 
   return mrb;
 }
@@ -161,6 +168,21 @@ mrb_irep_free(mrb_state *mrb, mrb_irep *irep)
   mrb_free(mrb, irep->lv);
   mrb_free(mrb, (void *)irep->filename);
   mrb_free(mrb, irep->lines);
+  mrb_free(mrb, irep->prof_info);
+  if (irep->jit_entry_tab) {
+    int i;
+    int j;
+
+    for (i = 0; i < irep->ilen; i++) {
+      for (j = 0; j < irep->jit_entry_tab[i].size; j++) {
+	if (irep->jit_entry_tab[i].body[j].reginfo) {
+	  //	  mrb_free(mrb, irep->jit_entry_tab[i].body[j].reginfo);
+	}
+      }
+    }
+    mrb_free(mrb, irep->jit_entry_tab->body);
+    mrb_free(mrb, irep->jit_entry_tab);
+  }
   mrb_debug_info_free(mrb, irep->debug_info);
   mrb_free(mrb, irep);
 }
@@ -176,6 +198,8 @@ mrb_str_pool(mrb_state *mrb, mrb_value str)
   ns = (struct RString *)mrb_malloc(mrb, sizeof(struct RString));
   ns->tt = MRB_TT_STRING;
   ns->c = mrb->string_class;
+  ns->flags = 0;
+  ns->color = 0;
 
   if (RSTR_NOFREE_P(s)) {
     ns->flags = MRB_STR_NOFREE;
@@ -222,7 +246,7 @@ mrb_free_context(mrb_state *mrb, struct mrb_context *c)
 {
   if (!c) return;
   mrb_free(mrb, c->stbase);
-  mrb_free(mrb, c->cibase);
+  mrb_free(mrb, c->cibase_org);
   mrb_free(mrb, c->rescue);
   mrb_free(mrb, c->ensure);
   mrb_free(mrb, c);
@@ -231,7 +255,13 @@ mrb_free_context(mrb_state *mrb, struct mrb_context *c)
 MRB_API void
 mrb_close(mrb_state *mrb)
 {
+  void mrbjit_dump_code(mrb_state *);
+
   if (!mrb) return;
+  if (mrb->logfp) {
+    fclose(mrb->logfp);
+    mrbjit_dump_code(mrb);
+  }
   if (mrb->atexit_stack_len > 0) {
     mrb_int i;
     for (i = mrb->atexit_stack_len; i > 0; --i) {
@@ -270,6 +300,7 @@ mrb_top_self(mrb_state *mrb)
 {
   if (!mrb->top_self) {
     mrb->top_self = (struct RObject*)mrb_obj_alloc(mrb, MRB_TT_OBJECT, mrb->object_class);
+    mrb->top_self->iv = &mrb->top_self->ivent;
     mrb_define_singleton_method(mrb, mrb->top_self, "inspect", inspect_main, MRB_ARGS_NONE());
     mrb_define_singleton_method(mrb, mrb->top_self, "to_s", inspect_main, MRB_ARGS_NONE());
   }

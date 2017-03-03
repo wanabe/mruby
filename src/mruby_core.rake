@@ -11,6 +11,8 @@ MRuby.each_target do
   if cxx_abi_enabled?
     objs += %w(vm error).map { |v| compile_as_cxx "#{current_dir}/#{v}.c", "#{current_build_dir}/#{v}.cxx" }
   end
+  objscc = Dir.glob("src/*.{cc}").map { |f| objfile(f.pathmap("#{build_dir}/%X")) }
+  objs += objscc
   self.libmruby << objs
 
   file libfile("#{build_dir}/lib/libmruby_core") => objs do |t|

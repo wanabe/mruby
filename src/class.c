@@ -16,6 +16,8 @@
 #include <mruby/data.h>
 #include <mruby/istruct.h>
 
+#include "mruby/primitive.h"
+
 KHASH_DEFINE(mt, mrb_sym, struct RProc*, TRUE, kh_int_hash_func, kh_int_hash_equal)
 
 void
@@ -371,6 +373,23 @@ mrb_define_method_raw(mrb_state *mrb, struct RClass *c, mrb_sym mid, struct RPro
   h = c->mt;
 
   if (!h) h = c->mt = kh_init(mt, mrb);
+  else {
+    struct RProc *op;
+
+    k = kh_get(mt, mrb, h, mid);
+    if (k != kh_end(h)) {
+      op = kh_value(h, k);
+      if (op && !MRB_PROC_CFUNC_P(op) && mrb->vmstatus) {
+	if (p == NULL || op->body.irep != p->body.irep) {
+	  mrbjit_reset_proc(mrb, mrb->vmstatus, op);
+	}
+      }
+    }
+  }
+
+  if (p && !MRB_PROC_CFUNC_P(p)) {
+    p->body.irep->jit_inlinep = mrbjit_check_inlineble(mrb, p->body.irep);
+  }
   k = kh_put(mt, mrb, h, mid);
   kh_value(h, k) = p;
   if (p) {
@@ -395,6 +414,31 @@ mrb_define_method(mrb_state *mrb, struct RClass *c, const char *name, mrb_func_t
 {
   mrb_define_method_id(mrb, c, mrb_intern_cstr(mrb, name), func, aspec);
 }
+
+void
+mrbjit_define_primitive_id(mrb_state *mrb, struct RClass *c, mrb_sym mid, mrbjit_prim_func_t func)
+{
+  struct RProc *p;
+  int ai = mrb_gc_arena_save(mrb);
+
+  p = mrb_proc_new_cfunc(mrb, (mrb_func_t)func);
+  p->target_class = c;
+  mrb_obj_iv_set(mrb, (struct RObject*)c, mid, mrb_obj_value(p));
+  mrb_gc_arena_restore(mrb, ai);
+}
+
+void
+mrbjit_define_primitive(mrb_state *mrb, struct RClass *c, const char *name, mrbjit_prim_func_t func)
+{
+  mrbjit_define_primitive_id(mrb, c, mrb_intern_cstr(mrb, name), func);
+}  
+
+void
+mrbjit_define_class_primitive(mrb_state *mrb, struct RClass *c, const char *name, mrbjit_prim_func_t func)
+{
+  prepare_singleton_class(mrb, (struct RBasic*)c);
+  mrbjit_define_primitive_id(mrb, c->c, mrb_intern_cstr(mrb, name), func);
+}  
 
 /* a function to raise NotImplementedError with current method name */
 MRB_API void
@@ -716,7 +760,7 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
           {
             mrb_raisef(mrb, E_TYPE_ERROR, "%S is not inline struct", ss);
           }
-          *p = mrb_istruct_ptr(ss);
+          *p = mrb_istruct_ptr(mrb, ss);
           arg_i++;
           i++;
         }
@@ -1337,6 +1381,10 @@ mrb_mod_attr_writer(mrb_state *mrb, mrb_value mod)
   return mrb_nil_value();
 }
 
+mrb_value ((*mrbjit_attr_func[])(mrb_state *, mrb_value)) ={
+  attr_reader, attr_writer
+};
+
 static mrb_value
 mrb_instance_alloc(mrb_state *mrb, mrb_value cv)
 {
@@ -1349,6 +1397,9 @@ mrb_instance_alloc(mrb_state *mrb, mrb_value cv)
 
   if (ttype == 0) ttype = MRB_TT_OBJECT;
   o = (struct RObject*)mrb_obj_alloc(mrb, ttype, c);
+  if (ttype == MRB_TT_OBJECT) {
+    o->iv = &o->ivent;
+  }
   return mrb_obj_value(o);
 }
 
@@ -2267,6 +2318,8 @@ mrb_init_class(mrb_state *mrb)
   mrb_define_class_method(mrb, cls, "new",               mrb_class_new_class,      MRB_ARGS_OPT(1));
   mrb_define_method(mrb, cls, "superclass",              mrb_class_superclass,     MRB_ARGS_NONE()); /* 15.2.3.3.4 */
   mrb_define_method(mrb, cls, "new",                     mrb_instance_new,         MRB_ARGS_ANY());  /* 15.2.3.3.3 */
+  mrbjit_define_primitive(mrb, cls, "new", mrbjit_prim_instance_new);
+
   mrb_define_method(mrb, cls, "initialize",              mrb_class_initialize,     MRB_ARGS_OPT(1)); /* 15.2.3.3.1 */
   mrb_define_method(mrb, cls, "inherited",               mrb_bob_init,             MRB_ARGS_REQ(1));
 
