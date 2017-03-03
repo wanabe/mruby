@@ -44,6 +44,9 @@ def assert(str = 'Assertion failed', iso = '')
   begin
     $mrbtest_assert = []
     $mrbtest_assert_idx = 0
+    40.times do
+      yield
+    end
     if(!yield || $mrbtest_assert.size > 0)
       $asserts.push(assertion_string('Fail: ', str, iso, nil))
       $ko_test += 1
@@ -61,7 +64,7 @@ def assert(str = 'Assertion failed', iso = '')
       $asserts.push(assertion_string("#{e.class}: ", str, iso, e, bt))
       $kill_test += 1
       t_print('X')
-  end
+    end
   ensure
     $mrbtest_assert = nil
   end
