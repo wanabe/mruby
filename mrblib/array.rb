@@ -73,7 +73,6 @@ class Array
         idx += 1
       end
     end
-
     self
   end
 
