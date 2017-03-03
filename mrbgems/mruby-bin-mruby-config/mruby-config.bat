@@ -7,7 +7,6 @@ if "%0" equ "--cflags" goto cflags
 if "%0" equ "--ldflags" goto ldflags
 if "%0" equ "--ldflags-before-libs" goto ldflagsbeforelibs
 if "%0" equ "--libs" goto libs
-if "%0" equ "--help" goto showhelp
 echo Invalid Option
 goto :eof
 
